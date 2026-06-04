@@ -1,212 +1,448 @@
-import os
-import subprocess
-import json
 import streamlit as st
-from dotenv import load_dotenv
-from google import genai
+from datetime import datetime
+from core.database import load_metrics_db
+from tabs import chat, review, generate, metrics, ab_compare, benchmark_tab, docs
 
-load_dotenv()
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+# ── page config ───────────────────────────────────────────────────────────────
+st.set_page_config(page_title="CodeSense", layout="wide", page_icon="◈",
+                   initial_sidebar_state="expanded")
 
-def run_ruff(code):
-    with open("temp_review.py", "w") as f:
-        f.write(code)
-    result = subprocess.run(
-        ["ruff", "check", "temp_review.py", "--output-format=json"],
-        capture_output=True, text=True
-    )
-    try:
-        return json.loads(result.stdout)
-    except:
-        return []
+# ── CSS — Claude-style sidebar + clean layout ─────────────────────────────────
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
 
-def run_bandit(code):
-    with open("temp_review.py", "w") as f:
-        f.write(code)
-    result = subprocess.run(
-        ["bandit", "-r", "temp_review.py", "-f", "json", "-q"],
-        capture_output=True, text=True
-    )
-    try:
-        return json.loads(result.stdout).get("results", [])
-    except:
-        return []
+:root {
+    --bg:        #ffffff;
+    --surface:   #f7f7f5;
+    --sidebar:   #f3f3ef;
+    --border:    #e8e8e4;
+    --border2:   #d4d4ce;
+    --text:      #1a1a1a;
+    --muted:     #999;
+    --accent:    #d97706;
+    --accent2:   #b45309;
+    --red:       #dc2626;
+    --orange:    #d97706;
+    --green:     #16a34a;
+    --mono:      'DM Mono', monospace;
+    --sans:      'Outfit', sans-serif;
+}
 
-def ask_llm(code, ruff_issues, bandit_issues, mode="static_llm"):
-    findings = ""
-    if mode == "static_llm":
-        for i in ruff_issues:
-            findings += f"- Ruff {i['code']}: {i['message']} (line {i['location']['row']})\n"
-        for i in bandit_issues:
-            findings += f"- Bandit {i['test_id']}: {i['issue_text']} (line {i['line_number']}, severity: {i['issue_severity']})\n"
+html, body, [class*="css"] {
+    font-family: var(--sans) !important;
+    color: var(--text) !important;
+}
+.stApp { background: var(--bg) !important; }
 
-    if mode == "llm_only":
-        prompt = f"""You are an expert code reviewer. Review this Python code.
+/* ── Hide default chrome ── */
+#MainMenu, footer, header { visibility: hidden; }
+.block-container {
+    padding-top: 1.5rem !important;
+    padding-left: 1.5rem !important;
+    padding-right: 1.5rem !important;
+    max-width: 100% !important;
+}
 
-CODE:
-{code}
+/* ── SIDEBAR ── */
+[data-testid="stSidebar"] {
+    background: var(--sidebar) !important;
+    border-right: 1px solid var(--border) !important;
+    min-width: 240px !important;
+    max-width: 260px !important;
+}
+[data-testid="stSidebar"] > div:first-child {
+    padding: 0 !important;
+}
+[data-testid="stSidebarContent"] {
+    padding: 0 !important;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+}
 
-For each issue provide:
-- Line number
-- Issue description
-- Severity (HIGH/MEDIUM/LOW)
-- Suggested fix with corrected code
-"""
-    else:
-        prompt = f"""You are an expert code reviewer. Review this Python code using the static analysis findings.
+/* Sidebar collapse button */
+[data-testid="collapsedControl"] {
+    color: var(--muted) !important;
+}
 
-CODE:
-{code}
+/* ── NAV RADIO BUTTONS → nav items ── */
+[data-testid="stSidebar"] .stRadio > div {
+    gap: 1px !important;
+}
+[data-testid="stSidebar"] .stRadio label {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    padding: 9px 14px !important;
+    border-radius: 8px !important;
+    cursor: pointer !important;
+    font-family: var(--sans) !important;
+    font-size: 0.9rem !important;
+    font-weight: 400 !important;
+    color: #3d3d3a !important;
+    transition: background 0.12s !important;
+    margin: 0 8px !important;
+    width: calc(100% - 16px) !important;
+}
+[data-testid="stSidebar"] .stRadio label:hover {
+    background: #e8e8e2 !important;
+    color: var(--text) !important;
+}
+[data-testid="stSidebar"] .stRadio [aria-checked="true"] + label,
+[data-testid="stSidebar"] .stRadio label[data-checked="true"] {
+    background: #e2e2dc !important;
+    font-weight: 600 !important;
+    color: var(--text) !important;
+}
+/* Hide radio circles */
+[data-testid="stSidebar"] .stRadio input[type="radio"] {
+    display: none !important;
+}
+[data-testid="stSidebar"] .stRadio [data-baseweb="radio"] > div:first-child {
+    display: none !important;
+}
+[data-testid="stSidebar"] .stRadio > label { display: none !important; }
 
-STATIC ANALYSIS FINDINGS:
-{findings}
+/* ── RECENT ITEMS ── */
+.recent-item {
+    display: block;
+    padding: 8px 14px;
+    margin: 1px 8px;
+    border-radius: 8px;
+    font-family: var(--sans);
+    font-size: 0.82rem;
+    color: #555;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: background 0.12s;
+}
+.recent-item:hover { background: #e8e8e2; color: var(--text); }
 
-For each issue provide:
-- Line number
-- Issue description
-- Severity (HIGH/MEDIUM/LOW)
-- Suggested fix with corrected code
-"""
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt
-    )
-    return response.text
+.sidebar-section {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #aaa;
+    padding: 12px 22px 4px;
+    margin-top: 4px;
+}
+.sidebar-logo {
+    padding: 20px 20px 12px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
+}
+.sidebar-bottom {
+    margin-top: auto;
+    padding: 12px;
+    border-top: 1px solid var(--border);
+}
 
-def generate_fixed_code(code, ruff_issues, bandit_issues):
-    findings = ""
-    for i in ruff_issues:
-        findings += f"- Ruff {i['code']}: {i['message']} (line {i['location']['row']})\n"
-    for i in bandit_issues:
-        findings += f"- Bandit {i['test_id']}: {i['issue_text']} (line {i['line_number']}, severity: {i['issue_severity']})\n"
+/* ── NEW SESSION BUTTON ── */
+[data-testid="stSidebar"] .stButton > button {
+    background: transparent !important;
+    color: #3d3d3a !important;
+    border: 1px solid var(--border2) !important;
+    border-radius: 8px !important;
+    font-family: var(--sans) !important;
+    font-size: 0.85rem !important;
+    font-weight: 500 !important;
+    padding: 8px 14px !important;
+    width: 100% !important;
+    text-align: left !important;
+    transition: background 0.12s !important;
+}
+[data-testid="stSidebar"] .stButton > button:hover {
+    background: #e8e8e2 !important;
+}
 
-    prompt = f"""You are an expert Python developer.
-Fix ALL the issues in the code below based on the static analysis findings.
-Return ONLY the fixed Python code, no explanations, no markdown, just clean code.
+/* ── MAIN AREA BUTTONS ── */
+.main-area .stButton > button,
+section[data-testid="stMain"] .stButton > button {
+    background: var(--accent) !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 7px !important;
+    font-family: var(--sans) !important;
+    font-size: 0.83rem !important;
+    font-weight: 600 !important;
+    padding: 9px 22px !important;
+    transition: background 0.15s !important;
+}
+section[data-testid="stMain"] .stButton > button:hover {
+    background: var(--accent2) !important;
+}
 
-ORIGINAL CODE:
-{code}
+/* ── INPUTS ── */
+.stTextInput > div > div > input,
+.stTextArea > div > div > textarea {
+    background: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 6px !important;
+    color: var(--text) !important;
+    font-family: var(--mono) !important;
+    font-size: 0.83rem !important;
+}
+.stTextInput > div > div > input:focus,
+.stTextArea > div > div > textarea:focus {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 1px var(--accent) !important;
+}
 
-ISSUES TO FIX:
-{findings}
+/* ── SELECTBOX ── */
+.stSelectbox > div > div {
+    background: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 6px !important;
+    font-family: var(--mono) !important;
+    font-size: 0.83rem !important;
+}
 
-FIXED CODE:
-"""
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt
-    )
-    return response.text
+/* ── LABELS ── */
+.stTextInput label, .stTextArea label, .stSelectbox label {
+    font-family: var(--mono) !important;
+    font-size: 0.7rem !important;
+    letter-spacing: 0.1em !important;
+    text-transform: uppercase !important;
+    color: var(--muted) !important;
+}
 
-def generate_code_from_description(description):
-    prompt = f"""You are an expert Python developer.
-Write clean, production-ready Python code based on this description.
-Return ONLY the Python code, no explanations, no markdown.
+/* ── TABS (inner) ── */
+.stTabs [data-baseweb="tab-list"] {
+    background: transparent !important;
+    border-bottom: 1px solid var(--border) !important;
+    gap: 0 !important;
+    padding: 0 !important;
+}
+.stTabs [data-baseweb="tab"] {
+    background: transparent !important;
+    color: var(--muted) !important;
+    border-radius: 0 !important;
+    border-bottom: 2px solid transparent !important;
+    font-family: var(--sans) !important;
+    font-size: 0.85rem !important;
+    font-weight: 500 !important;
+    padding: 10px 20px !important;
+    transition: all 0.15s !important;
+}
+.stTabs [aria-selected="true"] {
+    color: var(--accent) !important;
+    border-bottom: 2px solid var(--accent) !important;
+    font-weight: 600 !important;
+}
+.stTabs [data-baseweb="tab-panel"] { padding-top: 1.5rem !important; }
 
-DESCRIPTION:
-{description}
+/* ── METRICS ── */
+[data-testid="stMetric"] {
+    background: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 8px !important;
+    padding: 16px !important;
+}
+[data-testid="stMetricValue"] {
+    font-family: var(--mono) !important;
+    color: var(--accent) !important;
+    font-size: 1.8rem !important;
+}
+[data-testid="stMetricLabel"] {
+    font-family: var(--mono) !important;
+    font-size: 0.7rem !important;
+    letter-spacing: 0.1em !important;
+    text-transform: uppercase !important;
+    color: var(--muted) !important;
+}
 
-CODE:
-"""
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt
-    )
-    return response.text
+/* ── ALERTS ── */
+.stAlert {
+    border-radius: 6px !important;
+    border-left-width: 3px !important;
+    font-family: var(--mono) !important;
+    font-size: 0.8rem !important;
+}
 
-# UI
-st.set_page_config(page_title="AI Code Review Bot", layout="wide")
-st.title("AI Code Review Assistant")
+/* ── DATAFRAME ── */
+.stDataFrame {
+    border: 1px solid var(--border) !important;
+    border-radius: 6px !important;
+}
 
-tab1, tab2 = st.tabs(["Review Code", "Generate & Review"])
+/* ── CODE BLOCKS ── */
+.stCode, pre {
+    background: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 6px !important;
+    font-family: var(--mono) !important;
+}
 
-with tab1:
-    st.markdown("Paste your Python code below and get an AI-powered code review.")
-    mode = st.selectbox(
-        "Select Review Mode",
-        ["llm_only", "static_llm"],
-        format_func=lambda x: "LLM Only" if x == "llm_only" else "Static Analysis + LLM"
-    )
-    code_input = st.text_area("Paste your Python code here:", height=300)
+/* ── PROGRESS ── */
+.stProgress > div > div > div { background: var(--accent) !important; }
+.stProgress > div > div { background: var(--border) !important; border-radius: 2px !important; }
 
-    if st.button("Review Code"):
-        if not code_input.strip():
-            st.warning("Please paste some code first.")
-        else:
-            ruff_issues = run_ruff(code_input)
-            bandit_issues = run_bandit(code_input)
+/* ── DOWNLOAD BUTTON ── */
+.stDownloadButton > button {
+    background: transparent !important;
+    color: var(--accent) !important;
+    border: 1.5px solid var(--accent) !important;
+    border-radius: 7px !important;
+    font-family: var(--sans) !important;
+    font-size: 0.8rem !important;
+    font-weight: 500 !important;
+}
+.stDownloadButton > button:hover {
+    background: var(--accent) !important;
+    color: #fff !important;
+}
 
-            col1, col2 = st.columns(2)
-            with col1:
-                st.subheader("Static Analysis Results")
-                if ruff_issues:
-                    st.markdown("**Ruff Findings:**")
-                    for i in ruff_issues:
-                        st.error(f"Line {i['location']['row']}: {i['code']} - {i['message']}")
-                else:
-                    st.success("No Ruff issues found.")
-                if bandit_issues:
-                    st.markdown("**Bandit Findings:**")
-                    for i in bandit_issues:
-                        color = st.error if i['issue_severity'] == "HIGH" else st.warning
-                        color(f"Line {i['line_number']}: {i['test_id']} - {i['issue_text']} [{i['issue_severity']}]")
-                else:
-                    st.success("No Bandit issues found.")
+/* ── CHAT BUBBLES ── */
+.chat-user {
+    background: #fef3c7;
+    border-left: 3px solid var(--accent);
+    padding: 12px 16px;
+    margin: 6px 0;
+    border-radius: 0 8px 8px 0;
+    font-family: var(--sans);
+    font-size: 0.9rem;
+}
+.chat-assistant {
+    background: var(--surface);
+    border-left: 3px solid var(--border2);
+    padding: 12px 16px;
+    margin: 6px 0;
+    border-radius: 0 8px 8px 0;
+    font-family: var(--sans);
+    font-size: 0.9rem;
+}
 
-            with col2:
-                st.subheader("LLM Review")
-                with st.spinner("Reviewing..."):
-                    llm_output = ask_llm(code_input, ruff_issues, bandit_issues, mode)
-                st.markdown(llm_output)
+/* ── FORM ── */
+[data-testid="stForm"] {
+    background: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 8px !important;
+    padding: 12px !important;
+}
 
-            st.subheader("Generated Fixed Code")
-            with st.spinner("Generating fix..."):
-                fixed_code = generate_fixed_code(code_input, ruff_issues, bandit_issues)
-            st.code(fixed_code, language="python")
-            st.download_button(
-                label="Download Fixed Code",
-                data=fixed_code,
-                file_name="fixed_code.py",
-                mime="text/plain"
+/* ── SECTION LABEL ── */
+.section-label {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 6px;
+    margin-bottom: 14px;
+}
+.tag-high   { color: var(--red);    font-family: var(--mono); font-size: 0.75rem; }
+.tag-medium { color: var(--orange); font-family: var(--mono); font-size: 0.75rem; }
+.tag-low    { color: var(--green);  font-family: var(--mono); font-size: 0.75rem; }
+.stInfo { border-color: var(--accent) !important; }
+</style>
+""", unsafe_allow_html=True)
+
+# ── Session state ─────────────────────────────────────────────────────────────
+if "chat_history"  not in st.session_state: st.session_state.chat_history  = []
+if "chat_code"     not in st.session_state: st.session_state.chat_code     = ""
+if "metrics"       not in st.session_state: st.session_state.metrics       = load_metrics_db()
+if "current_page"  not in st.session_state: st.session_state.current_page  = "💬 Chat"
+
+# ── SIDEBAR ───────────────────────────────────────────────────────────────────
+with st.sidebar:
+    # Logo
+    st.markdown("""
+    <div class="sidebar-logo">
+      <div style="font-family:'Outfit',sans-serif;font-size:1.1rem;font-weight:700;
+                  color:#1a1a1a;letter-spacing:-0.02em;">◈ CodeSense</div>
+      <div style="font-family:'DM Mono',monospace;font-size:0.62rem;color:#bbb;
+                  letter-spacing:0.06em;text-transform:uppercase;margin-top:2px;">
+        AI Code Review · v1.0
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # New Session
+    if st.button("＋  New Session", key="new_session"):
+        st.session_state.chat_history = []
+        st.session_state.chat_code    = ""
+        st.session_state.current_page = "💬 Chat"
+        st.rerun()
+
+    st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+
+    # Navigation
+    pages = ["💬 Chat", "🔍 Review", "✨ Generate", "📊 Metrics",
+             "⚡ A/B Compare", "🎯 Benchmark", "📖 Docs"]
+
+    selected = st.radio("nav", pages, index=pages.index(st.session_state.current_page),
+                        label_visibility="collapsed", key="nav_radio")
+    if selected != st.session_state.current_page:
+        st.session_state.current_page = selected
+        st.rerun()
+
+    # Recent sessions from DB
+    st.markdown("<div class='sidebar-section'>Recents</div>", unsafe_allow_html=True)
+
+    recent_metrics = st.session_state.metrics[-10:][::-1]  # last 10, newest first
+    _MODE_SHORT = {"llm_only": "LLM", "static_llm": "Static+LLM", "repo_llm": "Repo+LLM"}
+
+    if recent_metrics:
+        for m in recent_metrics:
+            ts   = m.get("timestamp", "")[:16]
+            mode = _MODE_SHORT.get(m.get("mode", ""), m.get("mode", ""))
+            issues = m.get("ruff", 0) + m.get("bandit", 0)
+            label = f"{ts}  ·  {mode}  ·  {issues} issues"
+            st.markdown(
+                f"<div class='recent-item' title='{label}'>{label}</div>",
+                unsafe_allow_html=True
             )
+    else:
+        st.markdown(
+            "<div style='padding:8px 22px;font-size:0.8rem;color:#bbb;"
+            "font-family:DM Mono,monospace;'>No sessions yet</div>",
+            unsafe_allow_html=True
+        )
 
-with tab2:
-    st.markdown("Describe what you want to build and get generated + reviewed code.")
-    description = st.text_area(
-        "Describe your code:",
-        placeholder="e.g. A login function that checks username and password from a database",
-        height=150
-    )
+    # Bottom info
+    st.markdown("""
+    <div class="sidebar-bottom">
+      <div style="font-family:'DM Mono',monospace;font-size:0.65rem;color:#ccc;">
+        Powered by Gemini · Python 3.9
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    if st.button("Generate & Review"):
-        if not description.strip():
-            st.warning("Please describe what you want to build.")
-        else:
-            with st.spinner("Generating code..."):
-                generated = generate_code_from_description(description)
+# ── MAIN CONTENT ──────────────────────────────────────────────────────────────
+page = st.session_state.current_page
 
-            st.subheader("Generated Code")
-            st.code(generated, language="python")
+# Page title
+_TITLES = {
+    "💬 Chat":        ("Chat Assistant",         "Write code · Fix bugs · Add features · Explain · Write tests"),
+    "🔍 Review":      ("Code Review",             "Analyze your Python code with static analysis + AI"),
+    "✨ Generate":    ("Generate & Complete",      "Describe what you want — AI writes it, then auto-reviews"),
+    "📊 Metrics":     ("Metrics Dashboard",        "Session tracking — review and generation statistics"),
+    "⚡ A/B Compare": ("A/B Mode Comparison",      "Compare two review modes side-by-side on the same code"),
+    "🎯 Benchmark":   ("Benchmark Evaluation",     "50 controlled test cases · Precision / Recall / F1"),
+    "📖 Docs":        ("Documentation",            "How CodeSense works"),
+}
+title, subtitle = _TITLES.get(page, (page, ""))
+st.markdown(f"""
+<div style="display:flex;align-items:baseline;gap:12px;padding-bottom:10px;
+            border-bottom:1px solid #e8e8e4;margin-bottom:1.5rem;">
+  <span style="font-family:'Outfit',sans-serif;font-size:1.2rem;font-weight:700;
+               color:#1a1a1a;letter-spacing:-0.02em;">{title}</span>
+  <span style="font-family:'DM Mono',monospace;font-size:0.68rem;color:#bbb;
+               letter-spacing:0.05em;">{subtitle}</span>
+</div>
+""", unsafe_allow_html=True)
 
-            ruff_issues = run_ruff(generated)
-            bandit_issues = run_bandit(generated)
-
-            st.subheader("Auto Review Results")
-            col1, col2 = st.columns(2)
-            with col1:
-                st.markdown("**Static Analysis:**")
-                if ruff_issues:
-                    for i in ruff_issues:
-                        st.error(f"Line {i['location']['row']}: {i['code']} - {i['message']}")
-                if bandit_issues:
-                    for i in bandit_issues:
-                        color = st.error if i['issue_severity'] == "HIGH" else st.warning
-                        color(f"Line {i['line_number']}: {i['test_id']} - {i['issue_text']} [{i['issue_severity']}]")
-                if not ruff_issues and not bandit_issues:
-                    st.success("No issues found!")
-
-            with col2:
-                st.markdown("**LLM Review:**")
-                with st.spinner("Reviewing..."):
-                    review = ask_llm(generated, ruff_issues, bandit_issues, "static_llm")
-                st.markdown(review)
+# Route to page
+if   page == "💬 Chat":        chat.render()
+elif page == "🔍 Review":      review.render()
+elif page == "✨ Generate":    generate.render()
+elif page == "📊 Metrics":     metrics.render()
+elif page == "⚡ A/B Compare": ab_compare.render()
+elif page == "🎯 Benchmark":   benchmark_tab.render()
+elif page == "📖 Docs":        docs.render()
