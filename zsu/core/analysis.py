@@ -4,29 +4,44 @@ import json
 import shutil
 import tempfile
 import time
+import itertools
 import streamlit as st
 from dotenv import load_dotenv
 from google import genai
-from google.genai import errors as genai_errors
 from core.database import save_metric_db, load_metrics_db
 
 load_dotenv()
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+
+# ── Multi-key rotation ────────────────────────────────────────────────────────
+_API_KEYS = [
+    v for k, v in os.environ.items()
+    if k.startswith("GEMINI_API_KEY") and v and v.strip()
+]
+if not _API_KEYS:
+    fallback = os.getenv("GEMINI_API_KEY")
+    if fallback:
+        _API_KEYS = [fallback]
+
+_key_iter = itertools.cycle(_API_KEYS)
+
+def _new_client():
+    """Return a new Gemini client with the next API key in rotation."""
+    return genai.Client(api_key=next(_key_iter))
 
 MODEL = "gemini-2.5-flash"
 
 # ── Robust LLM call with retry ────────────────────────────────────────────────
 def llm_call(prompt: str, retries: int = 2) -> str:
-    """Call Gemini with short retry. Returns '' on failure."""
-    wait_times = [2, 5]   # max 7 sec total wait — much faster than before
+    """Call Gemini with key rotation and retry. Returns '' on failure."""
+    wait_times = [2, 5]
     for attempt in range(retries):
         try:
-            response = client.models.generate_content(model=MODEL, contents=prompt)
+            response = _new_client().models.generate_content(model=MODEL, contents=prompt)
             text = getattr(response, "text", None)
             return text or ""
         except Exception as e:
             err = str(e)
-            is_transient = any(k in err for k in ["503", "429", "UNAVAILABLE", "quota", "rate"])
+            is_transient = any(k in err for k in ["503", "429", "UNAVAILABLE", "quota", "rate", "exhausted"])
             if is_transient and attempt < retries - 1:
                 time.sleep(wait_times[attempt])
                 continue
@@ -35,15 +50,15 @@ def llm_call(prompt: str, retries: int = 2) -> str:
 
 
 def fast_llm_call(prompt: str) -> str:
-    """LLM call for benchmark — 1 retry with short wait. Fail fast."""
+    """LLM call for benchmark — rotates keys, 1 retry. Fail fast."""
     for attempt in range(2):
         try:
-            response = client.models.generate_content(model=MODEL, contents=prompt)
+            response = _new_client().models.generate_content(model=MODEL, contents=prompt)
             return getattr(response, "text", None) or ""
         except Exception as e:
             err = str(e)
-            if attempt == 0 and any(k in err for k in ["503", "429", "UNAVAILABLE", "quota", "rate"]):
-                time.sleep(3)  # short wait then one more try
+            if attempt == 0 and any(k in err for k in ["503", "429", "UNAVAILABLE", "quota", "rate", "exhausted"]):
+                time.sleep(3)
                 continue
             return ""
     return ""
@@ -192,7 +207,7 @@ FIXED CODE:"""
 # ── Chat ──────────────────────────────────────────────────────────────────────
 def chat_with_code(user_message: str, code_context: str, history: list) -> str:
     history_text = ""
-    for msg in history[-6:]:   # last 3 turns
+    for msg in history[-6:]:
         role = "User" if msg["role"] == "user" else "Assistant"
         history_text += f"{role}: {msg['content'][:300]}\n"
 
