@@ -31,26 +31,23 @@ def _new_client():
 MODEL = "gemini-2.5-flash"
 
 # ── Robust LLM call with retry ────────────────────────────────────────────────
-def fast_llm_call(prompt: str) -> str:
-    """Benchmark LLM call — tries each key in order, moves to next on quota error."""
+def llm_call(prompt: str, retries: int = 2) -> str:
     keys = _API_KEYS.copy()
     for key in keys:
-        for attempt in range(2):
+        for attempt in range(retries):
             try:
                 c = genai.Client(api_key=key)
                 response = c.models.generate_content(model=MODEL, contents=prompt)
                 return getattr(response, "text", None) or ""
             except Exception as e:
                 err = str(e)
-                is_quota = any(k in err for k in ["429", "quota", "exhausted", "RESOURCE_EXHAUSTED"])
-                is_transient = any(k in err for k in ["503", "UNAVAILABLE"])
-                if is_quota:
-                    break  # bu key dolmuş, bir sonraki key'e geç
-                if is_transient and attempt == 0:
-                    time.sleep(3)
+                if any(k in err for k in ["429", "quota", "exhausted", "RESOURCE_EXHAUSTED"]):
+                    break  # sonraki key
+                if any(k in err for k in ["503", "UNAVAILABLE"]) and attempt < retries - 1:
+                    time.sleep(2)
                     continue
                 return ""
-    return ""  # tüm keyler dolmuş
+    return ""
 
 def fast_llm_call(prompt: str) -> str:
     """Benchmark LLM call — tries each key in order, moves to next on quota error."""
