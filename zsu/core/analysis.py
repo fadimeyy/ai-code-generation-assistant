@@ -31,38 +31,47 @@ def _new_client():
 MODEL = "gemini-2.5-flash"
 
 # ── Robust LLM call with retry ────────────────────────────────────────────────
-def llm_call(prompt: str, retries: int = 2) -> str:
-    """Call Gemini with key rotation and retry. Returns '' on failure."""
-    wait_times = [2, 5]
-    for attempt in range(retries):
-        try:
-            response = _new_client().models.generate_content(model=MODEL, contents=prompt)
-            text = getattr(response, "text", None)
-            return text or ""
-        except Exception as e:
-            err = str(e)
-            is_transient = any(k in err for k in ["503", "429", "UNAVAILABLE", "quota", "rate", "exhausted"])
-            if is_transient and attempt < retries - 1:
-                time.sleep(wait_times[attempt])
-                continue
-            return ""
-    return ""
-
+def fast_llm_call(prompt: str) -> str:
+    """Benchmark LLM call — tries each key in order, moves to next on quota error."""
+    keys = _API_KEYS.copy()
+    for key in keys:
+        for attempt in range(2):
+            try:
+                c = genai.Client(api_key=key)
+                response = c.models.generate_content(model=MODEL, contents=prompt)
+                return getattr(response, "text", None) or ""
+            except Exception as e:
+                err = str(e)
+                is_quota = any(k in err for k in ["429", "quota", "exhausted", "RESOURCE_EXHAUSTED"])
+                is_transient = any(k in err for k in ["503", "UNAVAILABLE"])
+                if is_quota:
+                    break  # bu key dolmuş, bir sonraki key'e geç
+                if is_transient and attempt == 0:
+                    time.sleep(3)
+                    continue
+                return ""
+    return ""  # tüm keyler dolmuş
 
 def fast_llm_call(prompt: str) -> str:
-    """LLM call for benchmark — rotates keys, 1 retry. Fail fast."""
-    for attempt in range(2):
-        try:
-            response = _new_client().models.generate_content(model=MODEL, contents=prompt)
-            return getattr(response, "text", None) or ""
-        except Exception as e:
-            err = str(e)
-            if attempt == 0 and any(k in err for k in ["503", "429", "UNAVAILABLE", "quota", "rate", "exhausted"]):
-                time.sleep(3)
-                continue
-            return ""
-    return ""
-
+    """Benchmark LLM call — tries each key in order, moves to next on quota error."""
+    keys = _API_KEYS.copy()
+    for key in keys:
+        for attempt in range(2):
+            try:
+                c = genai.Client(api_key=key)
+                response = c.models.generate_content(model=MODEL, contents=prompt)
+                return getattr(response, "text", None) or ""
+            except Exception as e:
+                err = str(e)
+                is_quota = any(k in err for k in ["429", "quota", "exhausted", "RESOURCE_EXHAUSTED"])
+                is_transient = any(k in err for k in ["503", "UNAVAILABLE"])
+                if is_quota:
+                    break  # bu key dolmuş, bir sonraki key'e geç
+                if is_transient and attempt == 0:
+                    time.sleep(3)
+                    continue
+                return ""
+    return ""  # tüm keyler dolmuş
 
 # ── Static analysis helpers ───────────────────────────────────────────────────
 def _write_temp(code: str) -> str:
