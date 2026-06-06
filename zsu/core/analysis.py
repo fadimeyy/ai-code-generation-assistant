@@ -4,71 +4,41 @@ import json
 import shutil
 import tempfile
 import time
-import itertools
 import streamlit as st
 from dotenv import load_dotenv
-from google import genai
+from groq import Groq
 from core.database import save_metric_db, load_metrics_db
 
 load_dotenv()
 
-# ── Multi-key rotation ────────────────────────────────────────────────────────
-_API_KEYS = [
-    v for k, v in os.environ.items()
-    if k.startswith("GEMINI_API_KEY") and v and v.strip()
-]
-if not _API_KEYS:
-    fallback = os.getenv("GEMINI_API_KEY")
-    if fallback:
-        _API_KEYS = [fallback]
+# ── Groq client ───────────────────────────────────────────────────────────────
+_GROQ_CLIENT = Groq(api_key=os.getenv("GROQ_API_KEY"))
+MODEL = "llama-3.3-70b-versatile"
 
-_key_iter = itertools.cycle(_API_KEYS)
-
-def _new_client():
-    """Return a new Gemini client with the next API key in rotation."""
-    return genai.Client(api_key=next(_key_iter))
-
-MODEL = "gemini-2.5-flash"
 
 # ── Robust LLM call with retry ────────────────────────────────────────────────
-def llm_call(prompt: str, retries: int = 2) -> str:
-    keys = _API_KEYS.copy()
-    for key in keys:
-        for attempt in range(retries):
-            try:
-                c = genai.Client(api_key=key)
-                response = c.models.generate_content(model=MODEL, contents=prompt)
-                return getattr(response, "text", None) or ""
-            except Exception as e:
-                err = str(e)
-                if any(k in err for k in ["429", "quota", "exhausted", "RESOURCE_EXHAUSTED"]):
-                    break  # sonraki key
-                if any(k in err for k in ["503", "UNAVAILABLE"]) and attempt < retries - 1:
-                    time.sleep(2)
-                    continue
-                return ""
+def llm_call(prompt: str, retries: int = 3) -> str:
+    for attempt in range(retries):
+        try:
+            response = _GROQ_CLIENT.chat.completions.create(
+                model=MODEL,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=1024,
+            )
+            return response.choices[0].message.content or ""
+        except Exception as e:
+            err = str(e)
+            if any(k in err for k in ["rate_limit", "429", "quota"]) and attempt < retries - 1:
+                time.sleep(5)
+                continue
+            return ""
     return ""
 
+
 def fast_llm_call(prompt: str) -> str:
-    """Benchmark LLM call — tries each key in order, moves to next on quota error."""
-    keys = _API_KEYS.copy()
-    for key in keys:
-        for attempt in range(2):
-            try:
-                c = genai.Client(api_key=key)
-                response = c.models.generate_content(model=MODEL, contents=prompt)
-                return getattr(response, "text", None) or ""
-            except Exception as e:
-                err = str(e)
-                is_quota = any(k in err for k in ["429", "quota", "exhausted", "RESOURCE_EXHAUSTED"])
-                is_transient = any(k in err for k in ["503", "UNAVAILABLE"])
-                if is_quota:
-                    break  # bu key dolmuş, bir sonraki key'e geç
-                if is_transient and attempt == 0:
-                    time.sleep(3)
-                    continue
-                return ""
-    return ""  # tüm keyler dolmuş
+    """Benchmark LLM call — same as llm_call but with shorter timeout."""
+    return llm_call(prompt)
+
 
 # ── Static analysis helpers ───────────────────────────────────────────────────
 def _write_temp(code: str) -> str:

@@ -421,7 +421,7 @@ hr { border-color: var(--border) !important; }
 
 # ── Session state ─────────────────────────────────────────────────────────────
 if "history"      not in st.session_state: st.session_state.history      = []
-if "metrics_data" not in st.session_state: st.session_state.metrics_data = load_metrics_db()
+if "metrics_data" not in st.session_state: st.session_state.metrics= load_metrics_db()
 if "page"         not in st.session_state: st.session_state.page         = "chat"
 
 # ── Intent detection ──────────────────────────────────────────────────────────
@@ -487,7 +487,7 @@ with st.sidebar:
                 st.rerun()
 
     st.markdown("<div class='cs-recent'>Recent</div>", unsafe_allow_html=True)
-    recent = st.session_state.metrics_data[-8:][::-1]
+    recent = st.session_state.metrics[-8:][::-1]
     _MS = {"llm_only": "LLM", "static_llm": "Static+LLM", "repo_llm": "Repo+LLM"}
     if recent:
         for m in recent:
@@ -560,10 +560,28 @@ else:
                                       label_visibility="collapsed", key="repo_file")
         if st.button("Bağla", key="connect_repo"):
             if repo_url:
-                with st.spinner("Repo klonlanıyor..."):
+                with st.spinner("Repo klonlanıyor ve analiz ediliyor..."):
                     ctx = get_repo_context(repo_url, repo_file)
                 st.session_state["repo_context"] = ctx
-                st.success(f"✓ Repo bağlandı — {len(ctx)} karakter bağlam yüklendi.")
+                
+                # Otomatik analiz başlat
+                if ctx:
+                    with st.spinner("Repo analiz ediliyor..."):
+                        summary = chat_with_code(
+                            "Bu repoyu analiz et: hangi dosyalar var, ne iş yapıyor, "
+                            "güvenlik açığı veya kod kalitesi sorunu var mı? "
+                            "Kısaca özetle.",
+                            ctx,
+                            []
+                        )
+                    st.session_state.history.append({
+                        "role": "assistant",
+                        "content": f"✓ Repo bağlandı: `{repo_url}`\n\n{summary}",
+                        "intent": "repo"
+                    })
+                    st.rerun()
+                else:
+                    st.warning("Repo klonlanamadı. URL'yi kontrol et.")
             else:
                 st.warning("Repo URL girin.")
 

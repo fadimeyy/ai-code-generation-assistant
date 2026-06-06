@@ -75,7 +75,7 @@ def render():
                 title="",
                 xaxis=dict(showgrid=False),
                 yaxis=dict(showgrid=True, gridcolor="#e8e8e4", title="Sessions"),
-                showlegend=False,
+                
             )
             st.plotly_chart(fig_mode, use_container_width=True)
 
@@ -148,7 +148,7 @@ def render():
                 **_PLOTLY_LAYOUT,
                 xaxis=dict(showgrid=False),
                 yaxis=dict(showgrid=True, gridcolor="#e8e8e4", title="Detection Rate (%)", range=[0, 110]),
-                showlegend=False,
+                
             )
             st.plotly_chart(fig_det, use_container_width=True)
 
