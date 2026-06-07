@@ -68,7 +68,12 @@ html, body, [class*="css"] {
     border-right: 1px solid #2A1E2A !important;
     min-width: 240px !important;
     max-width: 256px !important;
+    display: flex !important;
+    visibility: visible !important;
+    transform: none !important;
 }
+[data-testid="stSidebarCollapseButton"] { display: none !important; }
+[data-testid="collapsedControl"] { display: none !important; }
 [data-testid="stSidebar"] > div:first-child { padding: 0 !important; }
 [data-testid="stSidebarContent"] {
     padding: 0 !important;
