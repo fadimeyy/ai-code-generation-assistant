@@ -206,20 +206,22 @@ def render():
         st.dataframe(rows, use_container_width=True)
 
         # ── Export ─────────────────────────────────────────────────────────────
-        col_exp1, col_exp2 = st.columns([1, 5])
+        csv_buf = io.StringIO()
+        writer = csv.DictWriter(csv_buf, fieldnames=["#", "Timestamp", "Mode", "Ruff Issues", "Bandit Issues", "Total Issues", "Issues Detected"])
+        writer.writeheader()
+        writer.writerows(rows)
+
+        col_exp1, col_exp2, _ = st.columns([1, 1, 4])
         with col_exp1:
-            if st.button("🗑 Clear Metrics"):
+            if st.button("🗑 Clear Metrics", use_container_width=True):
                 clear_metrics_db()
                 st.session_state.metrics = []
                 st.rerun()
         with col_exp2:
-            csv_buf = io.StringIO()
-            writer = csv.DictWriter(csv_buf, fieldnames=["#", "Timestamp", "Mode", "Ruff Issues", "Bandit Issues", "Total Issues", "Issues Detected"])
-            writer.writeheader()
-            writer.writerows(rows)
             st.download_button(
                 "⬇ Export CSV",
                 data=csv_buf.getvalue(),
                 file_name="codesense_metrics.csv",
                 mime="text/csv",
+                use_container_width=True,
             )

@@ -218,6 +218,32 @@ section[data-testid="stMain"] .stButton > button:active { transform: translateY(
 .stExpander { border: 1px solid var(--border) !important; border-radius: var(--radius) !important; background: var(--bg2) !important; box-shadow: var(--shadow) !important; }
 .stCheckbox label { color: var(--text2) !important; font-family: var(--mono) !important; font-size: 0.78rem !important; }
 
+/* Button row: all three elements same height and aligned */
+section[data-testid="stMain"] [data-testid="stHorizontalBlock"] {
+    padding: 0 32px !important;
+    gap: 8px !important;
+    align-items: flex-end !important;
+}
+section[data-testid="stMain"] [data-testid="stHorizontalBlock"] .stButton {
+    margin-bottom: 0 !important;
+}
+section[data-testid="stMain"] [data-testid="stHorizontalBlock"] .stButton > button {
+    height: 42px !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+section[data-testid="stMain"] [data-testid="stHorizontalBlock"] .stSelectbox {
+    margin-bottom: 0 !important;
+}
+section[data-testid="stMain"] [data-testid="stHorizontalBlock"] .stSelectbox label {
+    display: none !important;
+}
+section[data-testid="stMain"] [data-testid="stHorizontalBlock"] .stSelectbox > div > div {
+    height: 42px !important;
+    min-height: 42px !important;
+    margin-top: 0 !important;
+}
+
 .section-label { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--text3); border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 14px; }
 
 .intent-badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px; font-weight: 500; }
@@ -480,38 +506,52 @@ else:
     # ── Input ─────────────────────────────────────────────────────────────────
     st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
 
-    col_in, col_mode = st.columns([4, 1])
-    with col_in:
-        user_input = st.text_area(
-            "Message",
-            placeholder="Review code, write a function, explain an error... (Shift+Enter = new line)",
-            height=120, label_visibility="collapsed", key="user_msg"
-        )
-    with col_mode:
-        st.markdown("""
-        <div style='font-family:JetBrains Mono,monospace;font-size:0.58rem;
-                    letter-spacing:0.14em;text-transform:uppercase;color:#A09890;
-                    margin-bottom:4px;'>Review Mode</div>
-        """, unsafe_allow_html=True)
-        review_mode = st.selectbox(
-            "Review Mode", ["llm_only", "static_llm"],
-            format_func=lambda x: "LLM Only" if x == "llm_only" else "Static + LLM",
-            key="rev_mode", label_visibility="collapsed"
-        )
-        mode_desc = {"llm_only": "Fast — code only", "static_llm": "Ruff + Bandit + LLM"}
-        st.markdown(f"""
-        <div style='font-family:JetBrains Mono,monospace;font-size:0.62rem;
-                    color:#A09890;margin-top:4px;'>{mode_desc[review_mode]}</div>
-        """, unsafe_allow_html=True)
+    user_input = st.text_area(
+        "Message",
+        placeholder="Review code, write a function, explain an error... (Shift+Enter = new line)",
+        height=120, label_visibility="collapsed", key="user_msg"
+    )
 
-    col_send, col_clear, _ = st.columns([1, 1, 6])
+    col_send, col_clear, col_mode = st.columns([1, 1, 3])
     with col_send:
-        send = st.button("▶ Send", key="send_btn")
+        send = st.button("▶ Send", key="send_btn", use_container_width=True)
     with col_clear:
-        if st.button("✕ Clear", key="clear_btn"):
+        if st.button("✕ Clear", key="clear_btn", use_container_width=True):
             st.session_state.history = []
             st.session_state.session_id = str(uuid.uuid4())[:8]
             st.rerun()
+    with col_mode:
+        st.markdown("""
+        <style>
+        div[data-testid="stSelectbox"]:has(label[data-testid="stWidgetLabel"] p) {
+            position: relative;
+        }
+        div[data-testid="stSelectbox"] label { display: none !important; }
+        div[data-testid="stSelectbox"] > div > div::after {
+            content: "review mode";
+            position: absolute;
+            right: 36px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.58rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #A09890;
+            pointer-events: none;
+        }
+        div[data-testid="stSelectbox"] > div > div {
+            position: relative;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        review_mode = st.selectbox(
+            "review mode",
+            ["llm_only", "static_llm"],
+            format_func=lambda x: "🧠 LLM Only" if x == "llm_only" else "🔬 Static + LLM",
+            key="rev_mode",
+            label_visibility="collapsed",
+        )
 
     # ── Process ───────────────────────────────────────────────────────────────
     if send and user_input.strip():

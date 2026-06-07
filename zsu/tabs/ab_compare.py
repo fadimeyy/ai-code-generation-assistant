@@ -17,7 +17,6 @@ def render():
     _MODE_LABELS = {
         "llm_only":   "🧠 LLM Only",
         "static_llm": "🔬 Static + LLM",
-        "repo_llm":   "🗂 Repo + Static + LLM",
     }
 
     # ── Code input
@@ -108,9 +107,7 @@ def render():
             )
 
             def count_lines_mentioned(text: str) -> int:
-                line_refs = re.findall(r'[Ll]ine(?:\s+[Nn]umber)?:?\s*\d+', text)
-                issue_refs = re.findall(r'Severity:', text)
-                return max(len(line_refs), len(issue_refs))
+                return len(re.findall(r'[Ll]ine\s+\d+', text))
 
             lines_a = count_lines_mentioned(result_a)
             lines_b = count_lines_mentioned(result_b)
@@ -124,6 +121,7 @@ def render():
                 paper_bgcolor="#f7f7f5", plot_bgcolor="#f7f7f5",
                 font=dict(family="DM Mono, monospace", size=12, color="#1a1a1a"),
                 margin=dict(l=20, r=20, t=40, b=20),
+                showlegend=True,
             )
 
             chart_col1, chart_col2 = st.columns(2)
@@ -145,7 +143,7 @@ def render():
                     text=[bandit_a, bandit_b], textposition="outside",
                 ))
                 fig_ab.update_layout(
-                    **_ab_layout, barmode="group", showlegend=True,
+                    **_ab_layout, barmode="group",
                     title="Static Findings Visible to Each Mode",
                     xaxis=dict(showgrid=False),
                     yaxis=dict(showgrid=True, gridcolor="#e8e8e4", title="Issues"),

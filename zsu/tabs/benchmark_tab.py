@@ -15,7 +15,7 @@ def render():
     st.markdown(
         "<p style='color:#666;font-family:DM Mono,monospace;font-size:0.8rem;margin-bottom:1.2rem;'>"
         "Run 50 predefined buggy Python programs through the review modes. "
-        "Measures how many known issues each mode detects — use these results in your paper."
+        "Measures how many known issues each mode detects"
         "</p>",
         unsafe_allow_html=True,
     )
