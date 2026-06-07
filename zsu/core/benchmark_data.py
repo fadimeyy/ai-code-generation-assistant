@@ -814,6 +814,184 @@ def validate_username(username):
     return bool(re.match(pattern, username))
 '''
     },
+    # ── REPO+LLM ONLY — cross-module / context-dependent cases ───────────────
+    # Bu vakalar tek başına masum görünür; anlamlı bulgu için repo bağlamı şart.
+    # repo_context alanı, LLM'e "diğer modüllerden gelen" sahte bağlam sağlar.
+    {
+        "id": "TC-R01",
+        "name": "Unsafe Config Reuse Across Modules",
+        "category": "Security",
+        "severity": "HIGH",
+        "repo_only": True,
+        "repo_context": """\
+# config.py
+DB_PASSWORD = "prod_secret_123"
+DEBUG = True
+ALLOWED_HOSTS = ["*"]
+SECRET_KEY = "django-insecure-abc123xyz"
+
+# utils.py
+from config import DB_PASSWORD, SECRET_KEY
+def get_connection_string():
+    return f"postgresql://admin:{DB_PASSWORD}@db:5432/prod"
+""",
+        "known_issues": [
+            ["hardcoded password", "hardcoded credential", "secret", "config", "environment variable"],
+            ["debug", "debug=true", "production", "insecure", "secret key"],
+            ["allowed_hosts", "wildcard", "all hosts", "*"],
+        ],
+        "code": '''\
+from config import DB_PASSWORD, SECRET_KEY, DEBUG
+
+def init_app(app):
+    app.config["SECRET_KEY"] = SECRET_KEY
+    app.config["DEBUG"] = DEBUG
+    return app
+''',
+    },
+    {
+        "id": "TC-R02",
+        "name": "Shared Mutable State Between Services",
+        "category": "Quality",
+        "severity": "HIGH",
+        "repo_only": True,
+        "repo_context": """\
+# cache.py
+_cache = {}   # module-level shared dict, not thread-safe
+
+def set_value(key, value):
+    _cache[key] = value
+
+def get_value(key):
+    return _cache.get(key)
+
+# worker.py
+from cache import set_value, get_value
+import threading
+
+def process_job(job_id, data):
+    set_value(job_id, data)          # multiple threads write simultaneously
+    result = get_value(job_id)
+    return result
+""",
+        "known_issues": [
+            ["thread safety", "race condition", "shared state", "concurrent", "mutable"],
+            ["module-level", "global", "shared dict", "not thread-safe", "lock"],
+        ],
+        "code": '''\
+from cache import set_value, get_value
+
+def handle_request(request_id, payload):
+    set_value(request_id, payload)
+    return get_value(request_id)
+''',
+    },
+    {
+        "id": "TC-R03",
+        "name": "Auth Bypass via Module Import Order",
+        "category": "Security",
+        "severity": "HIGH",
+        "repo_only": True,
+        "repo_context": """\
+# auth.py
+_authenticated_users = set()
+
+def login(user_id):
+    _authenticated_users.add(user_id)
+
+def is_authenticated(user_id):
+    return user_id in _authenticated_users
+
+# admin.py  ← imported BEFORE auth is initialised in some entry points
+from auth import is_authenticated
+
+def get_admin_panel(user_id):
+    # relies on is_authenticated but never calls login first in test env
+    if is_authenticated(user_id):
+        return {"panel": "admin_data"}
+    return {"error": "forbidden"}
+""",
+        "known_issues": [
+            ["authentication", "bypass", "unauthenticated", "access control", "authorization"],
+            ["import order", "initialisation", "state", "not validated", "missing check"],
+        ],
+        "code": '''\
+from admin import get_admin_panel
+
+def admin_route(request):
+    user_id = request.get("user_id")
+    return get_admin_panel(user_id)
+''',
+    },
+    {
+        "id": "TC-R04",
+        "name": "Inconsistent Error Handling Across Layers",
+        "category": "Quality",
+        "severity": "MEDIUM",
+        "repo_only": True,
+        "repo_context": """\
+# db_layer.py
+def fetch_user(user_id):
+    # raises KeyError if not found — undocumented
+    result = _db[user_id]
+    return result
+
+# service_layer.py
+from db_layer import fetch_user
+
+def get_user_profile(user_id):
+    user = fetch_user(user_id)   # KeyError propagates uncaught
+    return {"name": user["name"], "email": user["email"]}
+""",
+        "known_issues": [
+            ["exception handling", "uncaught", "propagates", "keyerror", "missing error handling"],
+            ["inconsistent", "undocumented", "raises", "contract", "interface"],
+        ],
+        "code": '''\
+from service_layer import get_user_profile
+
+def user_endpoint(user_id):
+    profile = get_user_profile(user_id)
+    return profile
+''',
+    },
+    {
+        "id": "TC-R05",
+        "name": "Circular Dependency & Late Import Side Effect",
+        "category": "Quality",
+        "severity": "MEDIUM",
+        "repo_only": True,
+        "repo_context": """\
+# models.py
+from services import send_welcome_email   # ← imports services at module load
+
+class User:
+    def __init__(self, name, email):
+        self.name = name
+        self.email = email
+        send_welcome_email(email)         # side-effect in __init__
+
+# services.py
+from models import User                   # ← circular: models imports services
+
+def send_welcome_email(email):
+    print(f"Welcome {email}")
+
+def create_user(name, email):
+    return User(name, email)
+""",
+        "known_issues": [
+            ["circular import", "circular dependency", "import cycle", "models", "services"],
+            ["side effect", "__init__", "constructor", "email in constructor", "unexpected"],
+        ],
+        "code": '''\
+from services import create_user
+
+def register(name, email):
+    user = create_user(name, email)
+    return {"status": "ok", "user": user.name}
+''',
+    },
 ]
 
 

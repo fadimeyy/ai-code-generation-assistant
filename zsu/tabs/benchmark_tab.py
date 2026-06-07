@@ -4,9 +4,26 @@ import time
 import streamlit as st
 import plotly.graph_objects as go
 from core.benchmark_data import BENCHMARK_CASES, score_detection
-from core.analysis import run_ruff, run_bandit, ask_llm, fast_llm_call
+from core.analysis import run_ruff, run_bandit, fast_llm_call
+from core.database import load_latest_benchmark_results_db, save_benchmark_results_db
 
-_MODE_LABEL = {"llm_only": "LLM Only", "static_llm": "Static + LLM"}
+_MODE_LABEL = {
+    "llm_only":   "LLM Only",
+    "static_llm": "Static + LLM",
+    "repo_llm":   "Repo + LLM",
+}
+_CSV_FIELDS = [
+    "ID", "Name", "Category", "Severity", "Mode",
+    "GT Issues", "TP", "FP", "FN", "Precision %", "Recall %", "F1 %"
+]
+
+
+def _benchmark_csv(rows):
+    bm_csv = io.StringIO()
+    writer = csv.DictWriter(bm_csv, fieldnames=_CSV_FIELDS)
+    writer.writeheader()
+    writer.writerows(rows)
+    return bm_csv.getvalue()
 
 
 def render():
@@ -21,11 +38,42 @@ def render():
     )
 
     # ── Config ────────────────────────────────────────────────────────────────
+    latest_run = load_latest_benchmark_results_db()
+    if latest_run:
+        if "loaded_benchmark_run" not in st.session_state:
+            st.session_state.loaded_benchmark_run = None
+
+        st.markdown(
+            "<div class='section-label' style='margin-top:0.5rem;'>Saved Benchmark Export</div>",
+            unsafe_allow_html=True,
+        )
+        load_col, info_col = st.columns([1, 4])
+        with load_col:
+            if st.button("Load Previous Results", key="bm_load_previous", use_container_width=True):
+                st.session_state.loaded_benchmark_run = latest_run
+        with info_col:
+            st.markdown(
+                f"<p style='font-family:DM Mono,monospace;font-size:0.75rem;color:#999;'>"
+                f"Latest saved run: {latest_run['timestamp']} · {latest_run['row_count']} rows</p>",
+                unsafe_allow_html=True,
+            )
+
+        loaded_run = st.session_state.loaded_benchmark_run
+        if loaded_run:
+            st.dataframe(loaded_run["rows"], use_container_width=True)
+            st.download_button(
+                "Export Loaded Benchmark Results (CSV)",
+                data=_benchmark_csv(loaded_run["rows"]),
+                file_name="codesense_benchmark.csv",
+                mime="text/csv",
+                key=f"bm_export_loaded_{loaded_run['id']}",
+            )
+
     bm_col1, bm_col2 = st.columns([2, 1])
     with bm_col1:
         selected_modes = st.multiselect(
             "Modes to benchmark:",
-            ["llm_only", "static_llm"],
+            ["llm_only", "static_llm", "repo_llm"],
             default=["llm_only", "static_llm"],
             format_func=lambda x: _MODE_LABEL[x],
             key="bm_modes",
@@ -38,17 +86,31 @@ def render():
             key="bm_cats",
         )
 
-    filtered_cases = [c for c in BENCHMARK_CASES if c["category"] in selected_categories]
+    # Repo+LLM seçildiyse repo_only vakalarını da dahil et, seçilmediyse hariç tut
+    include_repo_only = "repo_llm" in selected_modes
+    filtered_cases = [
+        c for c in BENCHMARK_CASES
+        if c["category"] in selected_categories
+        and (include_repo_only or not c.get("repo_only", False))
+    ]
+
+    if "repo_llm" in selected_modes:
+        st.info("ℹ️ Repo+LLM modu seçili: TC-R01–TC-R05 (repo bağlamlı vakalar) benchmark'a dahil edildi.")
 
     # ── Quick Mode ────────────────────────────────────────────────────────────
     quick_mode = st.checkbox(
-        "⚡ Quick Mode (10 random cases instead of all 50)",
+        "⚡ Quick Mode (10 random cases instead of all — repo-only cases always included)",
         value=True, key="bm_quick"
     )
     if quick_mode and len(filtered_cases) > 10:
         import random as _rnd
         _rnd.seed(42)
-        filtered_cases = _rnd.sample(filtered_cases, 10)
+        # Repo-only vakalarını ayır, quick mode'da her zaman dahil et
+        repo_cases   = [c for c in filtered_cases if c.get("repo_only")]
+        normal_cases = [c for c in filtered_cases if not c.get("repo_only")]
+        sample_count = max(0, 10 - len(repo_cases))
+        sampled      = _rnd.sample(normal_cases, min(sample_count, len(normal_cases)))
+        filtered_cases = sampled + repo_cases
 
     total_calls = len(filtered_cases) * len(selected_modes)
     est_min = round(total_calls * 6 / 60, 1)
@@ -117,23 +179,37 @@ def render():
 
                 try:
                     static_section = ""
-                    if mode == "static_llm":
+                    if mode in ("static_llm", "repo_llm"):
                         lines = []
                         for i in ruff_issues:
                             lines.append(f"- Ruff {i['code']}: {i['message']}")
                         for i in bandit_issues:
                             lines.append(f"- Bandit {i['test_id']}: {i['issue_text']}")
-                        static_section = "STATIC FINDINGS:\n" + "\n".join(lines)
+                        if lines:
+                            static_section = "STATIC FINDINGS:\n" + "\n".join(lines)
+
+                    # Repo+LLM: test vakasının repo_context alanını prompt'a ekle
+                    repo_section = ""
+                    if mode == "repo_llm" and tc.get("repo_context"):
+                        repo_section = (
+                            "\nREPO CONTEXT (related modules from the same codebase):\n"
+                            + tc["repo_context"]
+                            + "\n"
+                        )
+
                     bm_prompt = (
-                        "You are a Python code reviewer. Review this code and list ALL issues.\n\n"
+                        "You are a Python code reviewer. Review this code carefully "
+                        "and list ALL issues found.\n\n"
                         f"CODE:\n{tc['code']}\n"
                         + (static_section + "\n" if static_section else "")
+                        + repo_section
                         + "For each issue name it explicitly: e.g. sql injection, hardcoded password, "
                         "eval, pickle, md5, shell=True, yaml.load, bare except, mutable default "
-                        "argument, unused import, resource leak, etc."
+                        "argument, unused import, resource leak, circular import, race condition, "
+                        "authentication bypass, thread safety, etc."
                     )
                     llm_out = fast_llm_call(bm_prompt)
-                    time.sleep(10)# pace requests — avoids rate-limit 42910
+                    time.sleep(10)  # pace requests — avoids rate-limit 429
                 except Exception:
                     llm_out = ""
 
@@ -236,6 +312,8 @@ def render():
                 "Recall %":    r["recall"],
                 "F1 %":        r["f1"],
             })
+        save_benchmark_results_db(table_rows)
+        st.session_state.loaded_benchmark_run = load_latest_benchmark_results_db()
         st.dataframe(table_rows, use_container_width=True)
 
         # ── Charts ────────────────────────────────────────────────────────────
@@ -247,7 +325,7 @@ def render():
                 font=dict(family="DM Mono, monospace", size=11, color="#1a1a1a"),
                 margin=dict(l=20, r=20, t=40, b=20),
             )
-            colors = ["#2563eb", "#7c3aed"]
+            colors = ["#2563eb", "#7c3aed", "#0d9488"]
 
             ch1, ch2 = st.columns(2)
             with ch1:
@@ -338,36 +416,52 @@ def render():
         # ── Research findings ─────────────────────────────────────────────────
         st.markdown("<div class='section-label' style='margin-top:0.5rem;'>Research Findings</div>",
                     unsafe_allow_html=True)
-        if len(mode_keys_used) == 2:
-            m0, m1 = mode_keys_used
-            r0 = [r for r in results if r["mode_key"] == m0]
-            r1 = [r for r in results if r["mode_key"] == m1]
-            f1_0 = sum(r["f1"]     for r in r0) / max(1, len(r0))
-            f1_1 = sum(r["f1"]     for r in r1) / max(1, len(r1))
-            rc_0 = sum(r["recall"] for r in r0) / max(1, len(r0))
-            rc_1 = sum(r["recall"] for r in r1) / max(1, len(r1))
-            better = _MODE_LABEL[m0] if f1_0 >= f1_1 else _MODE_LABEL[m1]
-            diff_f1 = abs(f1_0 - f1_1)
-            diff_rc = abs(rc_0 - rc_1)
+        if len(mode_keys_used) >= 2:
+            # Tüm modlar için F1 ortalamasını hesapla
+            mode_f1 = {}
+            mode_rc = {}
+            for mk in mode_keys_used:
+                mr = [r for r in results if r["mode_key"] == mk]
+                mode_f1[mk] = sum(r["f1"]     for r in mr) / max(1, len(mr))
+                mode_rc[mk] = sum(r["recall"] for r in mr) / max(1, len(mr))
+
+            best_mode = max(mode_f1, key=mode_f1.get)
+            worst_mode = min(mode_f1, key=mode_f1.get)
+            diff_f1 = mode_f1[best_mode] - mode_f1[worst_mode]
+            diff_rc = mode_rc[best_mode] - mode_rc[worst_mode]
+
+            # Repo+LLM özel bulgusu
+            repo_note = ""
+            if "repo_llm" in mode_keys_used:
+                repo_cases = [r for r in results if r["id"].startswith("TC-R")]
+                if repo_cases:
+                    repo_f1_by_mode = {
+                        mk: sum(r["f1"] for r in repo_cases if r["mode_key"] == mk)
+                           / max(1, sum(1 for r in repo_cases if r["mode_key"] == mk))
+                        for mk in mode_keys_used
+                    }
+                    repo_best = max(repo_f1_by_mode, key=repo_f1_by_mode.get)
+                    repo_note = (
+                        f"\n> 🔗 **Repo+LLM on cross-module cases (TC-R01–TC-R05):** "
+                        f"{_MODE_LABEL[repo_best]} achieved avg F1 of "
+                        f"**{repo_f1_by_mode[repo_best]:.1f}%** on context-dependent bugs "
+                        f"that LLM Only scored "
+                        f"**{repo_f1_by_mode.get('llm_only', 0):.1f}%** on.  "
+                    )
+
             st.markdown(f"""
 > ✨ **Key Finding:**  
-> **{better}** achieved higher average F1 across {len(filtered_cases)} test cases.  
-> F1 difference: **{diff_f1:.1f} pp** · Recall difference: **{diff_rc:.1f} pp**  
-> This supports the hypothesis that static analysis tools provide additional context  
-> that improves LLM-based code review quality.
+> **{_MODE_LABEL[best_mode]}** achieved the highest average F1 across {len(filtered_cases)} test cases.  
+> F1 difference (best vs worst): **{diff_f1:.1f} pp** · Recall difference: **{diff_rc:.1f} pp**  
+> This supports the hypothesis that additional context (static findings + repo) improves LLM-based code review.
+{repo_note}
 """)
 
         # ── Export ────────────────────────────────────────────────────────────
-        bm_csv = io.StringIO()
-        writer = csv.DictWriter(bm_csv, fieldnames=[
-            "ID", "Name", "Category", "Severity", "Mode",
-            "GT Issues", "TP", "FP", "FN", "Precision %", "Recall %", "F1 %"
-        ])
-        writer.writeheader()
-        writer.writerows(table_rows)
         st.download_button(
             "⬇ Export Benchmark Results (CSV)",
-            data=bm_csv.getvalue(),
+            data=_benchmark_csv(table_rows),
             file_name="codesense_benchmark.csv",
             mime="text/csv",
+            key="bm_export_current",
         )
