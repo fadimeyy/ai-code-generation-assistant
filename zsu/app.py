@@ -1,7 +1,11 @@
 import streamlit as st
 import re
+import uuid
 from datetime import datetime
-from core.database import load_metrics_db
+from core.database import (
+    load_metrics_db, save_chat_db,
+    load_chat_sessions_db, load_chat_history_db
+)
 from core.analysis import (
     ask_llm, run_ruff, run_bandit,
     generate_code_from_description, complete_code,
@@ -69,6 +73,7 @@ html, body, [class*="css"] {
     display: flex;
     flex-direction: column;
     height: 100vh;
+    overflow-y: auto;
 }
 .cs-logo {
     padding: 20px 18px 16px;
@@ -101,7 +106,6 @@ html, body, [class*="css"] {
     color: var(--s-text3);
     padding: 14px 18px 4px;
 }
-/* Remove ALL Streamlit button styling in sidebar */
 [data-testid="stSidebar"] .stButton > button {
     background: transparent !important;
     color: #857870 !important;
@@ -134,7 +138,6 @@ html, body, [class*="css"] {
     box-shadow: none !important;
     outline: none !important;
 }
-/* Active nav item */
 .cs-nav-active {
     display: block;
     padding: 8px 18px;
@@ -154,20 +157,6 @@ html, body, [class*="css"] {
     color: var(--s-text3);
     padding: 12px 18px 6px;
 }
-.recent-item {
-    display: block;
-    padding: 6px 14px;
-    margin: 1px 8px;
-    border-radius: 5px;
-    font-family: var(--mono);
-    font-size: 0.68rem;
-    color: var(--s-text3);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    transition: all 0.12s;
-}
-.recent-item:hover { background: #261820; color: var(--s-text2); }
 .cs-sidebar-bottom {
     margin-top: auto;
     padding: 10px 14px 12px;
@@ -208,29 +197,6 @@ section[data-testid="stMain"] > div { padding: 0 !important; }
 }
 .cs-page-content { padding: 24px 32px; }
 
-/* ── TOOLBAR ── */
-.cs-toolbar {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 10px 32px;
-    background: var(--bg2);
-    border-bottom: 1px solid var(--border);
-}
-.cs-mode-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 5px 12px;
-    border-radius: 20px;
-    font-family: var(--mono);
-    font-size: 0.68rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.12s;
-}
-.cs-mode-active { background: var(--accentbg); color: var(--accent); border: 1px solid var(--accentbd); }
-.cs-mode-inactive { background: var(--bg3); color: var(--text3); border: 1px solid var(--border); }
 .cs-repo-connected {
     display: inline-flex;
     align-items: center;
@@ -492,6 +458,28 @@ section[data-testid="stMain"] .stButton > button:active {
     font-size: 0.68rem !important;
 }
 
+/* ── SESSION HISTORY ITEMS ── */
+.session-item {
+    display: block;
+    padding: 6px 14px;
+    margin: 1px 8px;
+    border-radius: 5px;
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--s-text3);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: all 0.12s;
+    cursor: pointer;
+}
+.session-item:hover { background: #261820; color: var(--s-text2); }
+.session-item-active {
+    background: #2A1820 !important;
+    color: #E0A090 !important;
+    border-left: 2px solid #B42318;
+}
+
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: var(--bg3); }
 ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
@@ -500,11 +488,12 @@ hr { border-color: var(--border) !important; }
 """, unsafe_allow_html=True)
 
 # ── Session state ─────────────────────────────────────────────────────────────
-if "history"      not in st.session_state: st.session_state.history      = []
-if "metrics"      not in st.session_state: st.session_state.metrics      = load_metrics_db()
-if "page"         not in st.session_state: st.session_state.page         = "chat"
-if "repo_context" not in st.session_state: st.session_state.repo_context = ""
+if "history"           not in st.session_state: st.session_state.history           = []
+if "metrics"           not in st.session_state: st.session_state.metrics           = load_metrics_db()
+if "page"              not in st.session_state: st.session_state.page              = "chat"
+if "repo_context"      not in st.session_state: st.session_state.repo_context      = ""
 if "repo_url_connected" not in st.session_state: st.session_state.repo_url_connected = ""
+if "session_id"        not in st.session_state: st.session_state.session_id        = str(uuid.uuid4())[:8]
 
 # ── Intent detection ──────────────────────────────────────────────────────────
 def detect_intent(msg: str) -> str:
@@ -540,10 +529,11 @@ with st.sidebar:
 
     st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
 
-    if st.button("＋  New Session", key="new_session"):  # styled via sidebar CSS
+    if st.button("＋  New Session", key="new_session"):
         st.session_state.history = []
         st.session_state.repo_context = ""
         st.session_state.repo_url_connected = ""
+        st.session_state.session_id = str(uuid.uuid4())[:8]
         st.session_state.page = "chat"
         st.rerun()
 
@@ -571,16 +561,24 @@ with st.sidebar:
             st.session_state.page = "docs"
             st.rerun()
 
-    st.markdown("<div class='cs-recent-label'>Recent</div>", unsafe_allow_html=True)
-    recent = st.session_state.metrics[-8:][::-1]
-    _MS = {"llm_only": "LLM", "static_llm": "Static+LLM", "repo_llm": "Repo+LLM"}
-    if recent:
-        for m in recent:
-            ts   = m.get("timestamp", "")[:16]
-            mode = _MS.get(m.get("mode", ""), m.get("mode", ""))
-            iss  = m.get("ruff", 0) + m.get("bandit", 0)
-            st.markdown(f"<div class='recent-item'>{ts} · {mode} · {iss}i</div>",
-                        unsafe_allow_html=True)
+    # ── Recent Sessions (tıklanabilir) ────────────────────────────────────────
+    st.markdown("<div class='cs-recent-label'>Recent Sessions</div>", unsafe_allow_html=True)
+    sessions = load_chat_sessions_db()
+    if sessions:
+        for s in sessions:
+            ts       = s["started"][:16] if s["started"] else ""
+            n        = s["msg_count"]
+            sid      = s["session_id"]
+            is_active = sid == st.session_state.session_id
+            extra_cls = "session-item-active" if is_active else ""
+            # Buton olarak göster — tıklanınca o session yüklenir
+            btn_label = f"{ts} · {n}msg"
+            if st.button(btn_label, key=f"sess_{sid}"):
+                loaded = load_chat_history_db(sid)
+                st.session_state.history   = loaded
+                st.session_state.session_id = sid
+                st.session_state.page      = "chat"
+                st.rerun()
     else:
         st.markdown(
             "<div style='padding:5px 18px;font-size:0.68rem;color:#3A2830;"
@@ -627,7 +625,6 @@ if pg != "chat":
 
 # ── UNIFIED CHAT PAGE ─────────────────────────────────────────────────────────
 else:
-    # ── Header ────────────────────────────────────────────────────────────────
     repo_connected = st.session_state.repo_url_connected
     repo_badge = ""
     if repo_connected:
@@ -646,7 +643,7 @@ else:
     </div>
     """, unsafe_allow_html=True)
 
-    # ── Repo connect (collapsible) ─────────────────────────────────────────
+    # ── Repo connect ──────────────────────────────────────────────────────────
     with st.expander("🔗 Connect GitHub Repository" + (" ✓" if repo_connected else ""), expanded=False):
         col_r1, col_r2, col_r3 = st.columns([3, 1, 1])
         with col_r1:
@@ -673,11 +670,13 @@ else:
                                 "Give a concise summary.",
                                 ctx, []
                             )
+                        msg_content = f"✓ Repository connected: `{repo_url}`\n\n{summary}"
                         st.session_state.history.append({
                             "role": "assistant",
-                            "content": f"✓ Repository connected: `{repo_url}`\n\n{summary}",
+                            "content": msg_content,
                             "intent": "repo"
                         })
+                        save_chat_db(st.session_state.session_id, "assistant", msg_content, "repo")
                         st.rerun()
                     else:
                         st.warning("Could not clone repo. Check the URL.")
@@ -691,7 +690,7 @@ else:
 
     st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
 
-    # ── Chat history ──────────────────────────────────────────────────────────
+    # ── Chat history display ───────────────────────────────────────────────────
     if not st.session_state.history:
         st.markdown("""
         <div style="padding:48px 0 28px;text-align:center;">
@@ -754,7 +753,7 @@ else:
             label_visibility="collapsed"
         )
         mode_desc = {
-            "llm_only": "Fast — code only",
+            "llm_only":   "Fast — code only",
             "static_llm": "Ruff + Bandit + LLM",
         }
         st.markdown(f"""
@@ -768,12 +767,14 @@ else:
     with col_clear:
         if st.button("✕ Clear", key="clear_btn"):
             st.session_state.history = []
+            st.session_state.session_id = str(uuid.uuid4())[:8]
             st.rerun()
 
     # ── Process message ───────────────────────────────────────────────────────
     if send and user_input.strip():
         msg = user_input.strip()
         st.session_state.history.append({"role": "user", "content": msg})
+        save_chat_db(st.session_state.session_id, "user", msg, "user")
 
         intent   = detect_intent(msg)
         code     = extract_code(msg)
@@ -795,7 +796,6 @@ else:
                     st.session_state.metrics = load_metrics_db()
 
             elif intent == "review" and not code:
-                # Kod parse edilemedi ama yine de LLM'e gönder
                 ruff   = []
                 bandit = []
                 mode   = "repo_llm" if repo_ctx else review_mode
@@ -833,7 +833,6 @@ else:
                                 f"{len(ctx)} characters of context loaded. "
                                 f"Ask me anything about it or paste code to review.")
                 elif repo_ctx:
-                    # Already connected, answer about the repo
                     history_for_llm = [
                         {"role": m["role"], "content": m["content"]}
                         for m in st.session_state.history[:-1]
@@ -847,7 +846,7 @@ else:
 
             # ── BENCHMARK redirect ────────────────────────────────────────────
             elif intent == "benchmark":
-                response = ("Use the 🎯 Benchmark tab in the left menu to run the 50-case evaluation.")
+                response = "Use the 🎯 Benchmark tab in the left menu to run the 50-case evaluation."
 
             # ── CHAT (default) ───────────────────────────────────────────────
             else:
@@ -864,4 +863,5 @@ else:
             "content": response,
             "intent": intent
         })
+        save_chat_db(st.session_state.session_id, "assistant", response, intent)
         st.rerun()
