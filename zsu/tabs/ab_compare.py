@@ -108,7 +108,7 @@ def render():
             )
 
             def count_lines_mentioned(text: str) -> int:
-                return len(re.findall(r'[Ll]ine\s+\d+', text))
+                return len(re.findall(r'[Ll]ine(?:\s+number)?:?\s*\d+', text))
 
             lines_a = count_lines_mentioned(result_a)
             lines_b = count_lines_mentioned(result_b)
