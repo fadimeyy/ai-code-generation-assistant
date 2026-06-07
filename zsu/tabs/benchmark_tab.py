@@ -86,15 +86,27 @@ def render():
             key="bm_cats",
         )
 
-    # Repo+LLM seçildiyse repo_only vakalarını da dahil et, seçilmediyse hariç tut
-    include_repo_only = "repo_llm" in selected_modes
-    filtered_cases = [
-        c for c in BENCHMARK_CASES
-        if c["category"] in selected_categories
-        and (include_repo_only or not c.get("repo_only", False))
-    ]
+    repo_pilot_only = st.checkbox(
+        "Repo Pilot Control (TC-R01–TC-R05 only: LLM Only vs Static + LLM vs Repo + LLM)",
+        value=False,
+        key="bm_repo_pilot_only",
+    )
 
-    if "repo_llm" in selected_modes:
+    active_modes = ["llm_only", "static_llm", "repo_llm"] if repo_pilot_only else selected_modes
+
+    if repo_pilot_only:
+        filtered_cases = [c for c in BENCHMARK_CASES if c.get("repo_only", False)]
+        st.info("Repo pilot control is active: only TC-R01–TC-R05 will run with LLM Only, Static + LLM, and Repo + LLM.")
+    else:
+        # Repo+LLM seçildiyse repo_only vakalarını da dahil et, seçilmediyse hariç tut
+        include_repo_only = "repo_llm" in active_modes
+        filtered_cases = [
+            c for c in BENCHMARK_CASES
+            if c["category"] in selected_categories
+            and (include_repo_only or not c.get("repo_only", False))
+        ]
+
+    if "repo_llm" in active_modes and not repo_pilot_only:
         st.info("ℹ️ Repo+LLM modu seçili: TC-R01–TC-R05 (repo bağlamlı vakalar) benchmark'a dahil edildi.")
 
     # ── Quick Mode ────────────────────────────────────────────────────────────
@@ -113,15 +125,18 @@ def render():
         filtered_cases = sampled + repo_cases
 
     # Gerçek call sayısını hesapla (repo_only vakalar sadece repo_llm ile çalışır)
-    _normal_modes = [m for m in selected_modes if m != "repo_llm"]
-    _repo_modes   = [m for m in selected_modes if m == "repo_llm"]
+    _normal_modes = [m for m in active_modes if m != "repo_llm"]
+    _repo_modes   = [m for m in active_modes if m == "repo_llm"]
     _normal_count = sum(1 for c in filtered_cases if not c.get("repo_only"))
     _repo_count   = sum(1 for c in filtered_cases if c.get("repo_only"))
-    total_calls = _normal_count * len(_normal_modes) + _repo_count * len(_repo_modes)
+    if repo_pilot_only:
+        total_calls = len(filtered_cases) * len(active_modes)
+    else:
+        total_calls = _normal_count * len(_normal_modes) + _repo_count * len(_repo_modes)
     est_min = round(total_calls * 6 / 60, 1)
     st.markdown(
         f"<p style='font-family:DM Mono,monospace;font-size:0.75rem;color:#999;'>"
-        f"{len(filtered_cases)} test cases · {len(selected_modes)} mode(s) · "
+        f"{len(filtered_cases)} test cases · {len(active_modes)} mode(s) · "
         f"{total_calls} API calls · est. ~{est_min} min</p>",
         unsafe_allow_html=True,
     )
@@ -145,7 +160,7 @@ def render():
     run_benchmark = st.button("🚀 Run Benchmark", key="bm_run")
 
     if run_benchmark:
-        if not selected_modes:
+        if not active_modes:
             st.warning("Please select at least one mode.")
             return
         if not filtered_cases:
@@ -155,11 +170,14 @@ def render():
         results = []
         skipped = []
         # Toplam call sayısını akıllıca hesapla
-        normal_modes = [m for m in selected_modes if m != "repo_llm"]
-        repo_modes   = [m for m in selected_modes if m == "repo_llm"]
+        normal_modes = [m for m in active_modes if m != "repo_llm"]
+        repo_modes   = [m for m in active_modes if m == "repo_llm"]
         normal_cases_count = sum(1 for c in filtered_cases if not c.get("repo_only"))
         repo_cases_count   = sum(1 for c in filtered_cases if c.get("repo_only"))
-        total_cases = normal_cases_count * len(normal_modes) + repo_cases_count * len(repo_modes)
+        if repo_pilot_only:
+            total_cases = len(filtered_cases) * len(active_modes)
+        else:
+            total_cases = normal_cases_count * len(normal_modes) + repo_cases_count * len(repo_modes)
         progress  = st.progress(0)
         status_txt = st.empty()
         eta_txt    = st.empty()
@@ -171,11 +189,13 @@ def render():
             ruff_issues   = run_ruff(tc["code"])
             bandit_issues = run_bandit(tc["code"])
 
-            # repo_only vakalar sadece repo_llm ile, normal vakalar sadece diğer modlarla
-            if tc.get("repo_only"):
-                modes_for_tc = [m for m in selected_modes if m == "repo_llm"]
+            # repo pilot control'de repo vakaları hem LLM Only hem Repo+LLM ile çalışır
+            if repo_pilot_only:
+                modes_for_tc = active_modes
+            elif tc.get("repo_only"):
+                modes_for_tc = [m for m in active_modes if m == "repo_llm"]
             else:
-                modes_for_tc = [m for m in selected_modes if m != "repo_llm"]
+                modes_for_tc = [m for m in active_modes if m != "repo_llm"]
 
             for mode in modes_for_tc:
                 status_txt.markdown(
@@ -296,7 +316,7 @@ def render():
         # ── KPI summary ───────────────────────────────────────────────────────
         st.markdown("<div class='section-label' style='margin-top:1rem;'>Summary</div>",
                     unsafe_allow_html=True)
-        mode_keys_used = [m for m in selected_modes if any(r["mode_key"] == m for r in results)]
+        mode_keys_used = [m for m in active_modes if any(r["mode_key"] == m for r in results)]
         kpi_cols = st.columns(len(mode_keys_used) * 3)
         kpi_idx = 0
         for mode_key in mode_keys_used:
@@ -331,6 +351,45 @@ def render():
         save_benchmark_results_db(table_rows)
         st.session_state.loaded_benchmark_run = load_latest_benchmark_results_db()
         st.dataframe(table_rows, use_container_width=True)
+
+        pilot_results = [r for r in results if r["id"].startswith("TC-R")]
+        if pilot_results and {"llm_only", "static_llm", "repo_llm"}.issubset({r["mode_key"] for r in pilot_results}):
+            st.markdown(
+                "<div class='section-label' style='margin-top:1rem;'>Repo Pilot Control Summary</div>",
+                unsafe_allow_html=True,
+            )
+            pilot_rows = []
+            for tc in [c for c in BENCHMARK_CASES if c.get("repo_only", False)]:
+                llm_row = next(
+                    (r for r in pilot_results if r["id"] == tc["id"] and r["mode_key"] == "llm_only"),
+                    None,
+                )
+                static_row = next(
+                    (r for r in pilot_results if r["id"] == tc["id"] and r["mode_key"] == "static_llm"),
+                    None,
+                )
+                repo_row = next(
+                    (r for r in pilot_results if r["id"] == tc["id"] and r["mode_key"] == "repo_llm"),
+                    None,
+                )
+                if not llm_row or not static_row or not repo_row:
+                    continue
+                repo_gain = repo_row["f1"] - llm_row["f1"]
+                static_gain = static_row["f1"] - llm_row["f1"]
+                pilot_rows.append({
+                    "ID": tc["id"],
+                    "Test Case": tc["name"],
+                    "Category": tc["category"],
+                    "Severity": tc["severity"],
+                    "GT": repo_row["total_gt"],
+                    "LLM Only F1 %": llm_row["f1"],
+                    "Static+LLM F1 %": static_row["f1"],
+                    "Repo+LLM F1 %": repo_row["f1"],
+                    "Static Gain": f"{static_gain:+.1f}",
+                    "Repo Gain": f"{repo_gain:+.1f}",
+                })
+            if pilot_rows:
+                st.dataframe(pilot_rows, use_container_width=True)
 
         # ── Charts ────────────────────────────────────────────────────────────
         if len(mode_keys_used) >= 1:
