@@ -585,9 +585,13 @@ else:
             if x == "static_llm": return "🔬 Static + LLM"
             return "🔗 Repo + LLM"
 
+        _default_mode = "repo_llm" if st.session_state.repo_url_connected else "llm_only"
+        _default_idx  = _mode_options.index(_default_mode)
+
         review_mode = st.selectbox(
             "review mode",
             _mode_options,
+            index=_default_idx,
             format_func=_fmt_mode,
             key="rev_mode",
             label_visibility="collapsed",
