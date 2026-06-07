@@ -795,8 +795,16 @@ else:
                     st.session_state.metrics = load_metrics_db()
 
             elif intent == "review" and not code:
-                response = ("To review code, please include it in your message.\n\n"
-                            "Example:\n```python\ndef login(user, pw):\n    ...\n```")
+                # Kod parse edilemedi ama yine de LLM'e gönder
+                ruff   = []
+                bandit = []
+                mode   = "repo_llm" if repo_ctx else review_mode
+                response = ask_llm(msg, ruff, bandit, mode, repo_ctx)
+                if not response:
+                    response = "⚠️ No response from API. Please try again."
+                else:
+                    record_metric(mode, 0, 0, False)
+                    st.session_state.metrics = load_metrics_db()
 
             # ── GENERATE ─────────────────────────────────────────────────────
             elif intent == "generate":
