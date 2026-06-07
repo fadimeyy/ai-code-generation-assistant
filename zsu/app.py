@@ -62,6 +62,21 @@ html, body, [class*="css"] {
 #MainMenu, footer, header { visibility: hidden; }
 .block-container { padding: 0 !important; max-width: 100% !important; }
 
+/* Sidebar toggle button */
+.cs-toggle-btn {
+    background: transparent !important;
+    border: 1px solid #2A1E2A !important;
+    border-radius: 6px !important;
+    color: var(--text3) !important;
+    font-size: 1rem !important;
+    width: 34px !important; height: 34px !important;
+    cursor: pointer !important;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s !important;
+    padding: 0 !important;
+}
+.cs-toggle-btn:hover { background: var(--bg3) !important; color: var(--text) !important; }
+
 [data-testid="stSidebar"] {
     background: var(--sidebar) !important;
     border-right: 1px solid #2A1E2A !important;
@@ -385,8 +400,11 @@ if pg != "chat":
     t, s = _TITLES.get(pg, (pg, ""))
     st.markdown(f"""
     <div class="cs-page-header">
-      <div><span class="cs-page-title">{t}</span>
-      <span class="cs-page-sub">{s}</span></div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <button class="cs-toggle-btn" onclick="(function(){{var b=window.parent.document.querySelector('[data-testid=stSidebarCollapseButton] button');if(!b)b=window.parent.document.querySelector('[data-testid=collapsedControl] button');if(b)b.click();}})();" title="Toggle sidebar">&#9776;</button>
+        <div><span class="cs-page-title">{t}</span>
+        <span class="cs-page-sub">{s}</span></div>
+      </div>
     </div>
     <div class="cs-page-content">
     """, unsafe_allow_html=True)
@@ -416,9 +434,12 @@ else:
 
     st.markdown(f"""
     <div class="cs-page-header">
-      <div>
-        <span class="cs-page-title">CodeSense</span>
-        <span class="cs-page-sub">chat · review · generate · repo analysis</span>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <button class="cs-toggle-btn" onclick="(function(){{var b=window.parent.document.querySelector('[data-testid=stSidebarCollapseButton] button');if(!b)b=window.parent.document.querySelector('[data-testid=collapsedControl] button');if(b)b.click();}})();" title="Toggle sidebar">&#9776;</button>
+        <div>
+          <span class="cs-page-title">CodeSense</span>
+          <span class="cs-page-sub">chat · review · generate · repo analysis</span>
+        </div>
       </div>
       <div style="display:flex;gap:8px;align-items:center;">{repo_badge}</div>
     </div>
