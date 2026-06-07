@@ -576,10 +576,19 @@ else:
         }
         </style>
         """, unsafe_allow_html=True)
+        _mode_options = ["llm_only", "static_llm"]
+        if st.session_state.repo_url_connected:
+            _mode_options.append("repo_llm")
+
+        def _fmt_mode(x):
+            if x == "llm_only":   return "🧠 LLM Only"
+            if x == "static_llm": return "🔬 Static + LLM"
+            return "🔗 Repo + LLM"
+
         review_mode = st.selectbox(
             "review mode",
-            ["llm_only", "static_llm"],
-            format_func=lambda x: "🧠 LLM Only" if x == "llm_only" else "🔬 Static + LLM",
+            _mode_options,
+            format_func=_fmt_mode,
             key="rev_mode",
             label_visibility="collapsed",
         )
@@ -600,22 +609,28 @@ else:
             if intent == "review" and code:
                 ruff   = run_ruff(code)
                 bandit = run_bandit(code)
-                mode   = "repo_llm" if repo_ctx else review_mode
-                response = ask_llm(code, ruff, bandit, mode, repo_ctx)
-                if not response:
-                    response = "⚠️ No response from API. Please wait a moment and try again."
+                mode   = review_mode
+                if mode == "repo_llm" and not repo_ctx:
+                    response = "⚠️ Repo + LLM modu seçili ama bağlı repo yok. Önce bir GitHub deposu bağla."
                 else:
-                    record_metric(mode, len(ruff), len(bandit), bool(ruff or bandit))
-                    st.session_state.metrics = load_metrics_db()
+                    response = ask_llm(code, ruff, bandit, mode, repo_ctx)
+                    if not response:
+                        response = "⚠️ No response from API. Please wait a moment and try again."
+                    else:
+                        record_metric(mode, len(ruff), len(bandit), bool(ruff or bandit))
+                        st.session_state.metrics = load_metrics_db()
 
             elif intent == "review" and not code:
-                mode = "repo_llm" if repo_ctx else review_mode
-                response = ask_llm(msg, [], [], mode, repo_ctx)
-                if not response:
-                    response = "⚠️ No response from API. Please try again."
+                mode = review_mode
+                if mode == "repo_llm" and not repo_ctx:
+                    response = "⚠️ Repo + LLM modu seçili ama bağlı repo yok. Önce bir GitHub deposu bağla."
                 else:
-                    record_metric(mode, 0, 0, False)
-                    st.session_state.metrics = load_metrics_db()
+                    response = ask_llm(msg, [], [], mode, repo_ctx)
+                    if not response:
+                        response = "⚠️ No response from API. Please try again."
+                    else:
+                        record_metric(mode, 0, 0, False)
+                        st.session_state.metrics = load_metrics_db()
 
             elif intent == "generate":
                 if re.search(r"tamamla|complete|devam et|finish", msg.lower()) and code:
