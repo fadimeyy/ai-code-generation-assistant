@@ -12,6 +12,8 @@ from core.analysis import (
     chat_with_code, get_repo_context, record_metric
 )
 
+# sidebar_open is set after session_state init, but page_config runs first
+# So we use a query param trick: default expanded, user toggles via button
 st.set_page_config(page_title="CodeSense", layout="wide", page_icon="◈",
                    initial_sidebar_state="expanded")
 
@@ -63,19 +65,23 @@ html, body, [class*="css"] {
 .block-container { padding: 0 !important; max-width: 100% !important; }
 
 /* Sidebar toggle button */
-.cs-toggle-btn {
+.cs-toggle-wrap > div > button {
     background: transparent !important;
-    border: 1px solid #2A1E2A !important;
+    border: 1px solid var(--border2) !important;
     border-radius: 6px !important;
-    color: var(--text3) !important;
-    font-size: 1rem !important;
+    color: var(--text2) !important;
+    font-size: 1.1rem !important;
     width: 34px !important; height: 34px !important;
-    cursor: pointer !important;
-    display: flex; align-items: center; justify-content: center;
-    transition: all 0.15s !important;
+    min-height: 34px !important;
     padding: 0 !important;
+    box-shadow: none !important;
+    letter-spacing: 0 !important;
 }
-.cs-toggle-btn:hover { background: var(--bg3) !important; color: var(--text) !important; }
+.cs-toggle-wrap > div > button:hover {
+    background: var(--bg3) !important;
+    color: var(--text) !important;
+    transform: none !important;
+}
 
 [data-testid="stSidebar"] {
     background: var(--sidebar) !important;
@@ -293,6 +299,7 @@ if "page"               not in st.session_state: st.session_state.page          
 if "repo_context"       not in st.session_state: st.session_state.repo_context       = ""
 if "repo_url_connected" not in st.session_state: st.session_state.repo_url_connected = ""
 if "session_id"         not in st.session_state: st.session_state.session_id         = str(uuid.uuid4())[:8]
+if "sidebar_open"       not in st.session_state: st.session_state.sidebar_open       = True
 
 # ── Intent detection ──────────────────────────────────────────────────────────
 def detect_intent(msg: str) -> str:
@@ -386,6 +393,16 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
+# ── Dynamic sidebar CSS ──────────────────────────────────────────────────────
+if not st.session_state.sidebar_open:
+    st.markdown("""
+    <style>
+    [data-testid="stSidebar"] {
+        display: none !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
 # ── MAIN ──────────────────────────────────────────────────────────────────────
 pg = st.session_state.page
 
@@ -398,16 +415,22 @@ if pg != "chat":
         "docs":      ("Docs",        "architecture · how it works"),
     }
     t, s = _TITLES.get(pg, (pg, ""))
-    st.markdown(f"""
-    <div class="cs-page-header">
-      <div style="display:flex;align-items:center;gap:12px;">
-        <button class="cs-toggle-btn" onclick="(function(){{var b=window.parent.document.querySelector('[data-testid=stSidebarCollapseButton] button');if(!b)b=window.parent.document.querySelector('[data-testid=collapsedControl] button');if(b)b.click();}})();" title="Toggle sidebar">&#9776;</button>
-        <div><span class="cs-page-title">{t}</span>
-        <span class="cs-page-sub">{s}</span></div>
-      </div>
-    </div>
-    <div class="cs-page-content">
-    """, unsafe_allow_html=True)
+
+    hcol1, hcol2 = st.columns([8, 1])
+    with hcol1:
+        st.markdown(f"""
+        <div class="cs-page-header">
+          <div><span class="cs-page-title">{t}</span>
+          <span class="cs-page-sub">{s}</span></div>
+        </div>
+        <div class="cs-page-content">
+        """, unsafe_allow_html=True)
+    with hcol2:
+        st.markdown("<div class='cs-toggle-wrap' style='padding-top:8px;'>", unsafe_allow_html=True)
+        if st.button("☰", key="toggle_sb_nonchat", help="Toggle sidebar"):
+            st.session_state.sidebar_open = not st.session_state.sidebar_open
+            st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
 
     if pg == "benchmark":
         from tabs import benchmark_tab
@@ -432,18 +455,23 @@ else:
         short = repo_connected.replace("https://github.com/", "")
         repo_badge = f"<span class='cs-repo-connected'>🔗 {short}</span>"
 
-    st.markdown(f"""
-    <div class="cs-page-header">
-      <div style="display:flex;align-items:center;gap:12px;">
-        <button class="cs-toggle-btn" onclick="(function(){{var b=window.parent.document.querySelector('[data-testid=stSidebarCollapseButton] button');if(!b)b=window.parent.document.querySelector('[data-testid=collapsedControl] button');if(b)b.click();}})();" title="Toggle sidebar">&#9776;</button>
-        <div>
-          <span class="cs-page-title">CodeSense</span>
-          <span class="cs-page-sub">chat · review · generate · repo analysis</span>
+    hc1, hc2 = st.columns([10, 1])
+    with hc1:
+        st.markdown(f"""
+        <div class="cs-page-header">
+          <div>
+            <span class="cs-page-title">CodeSense</span>
+            <span class="cs-page-sub">chat · review · generate · repo analysis</span>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">{repo_badge}</div>
         </div>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center;">{repo_badge}</div>
-    </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
+    with hc2:
+        st.markdown("<div class='cs-toggle-wrap' style='padding-top:8px;'>", unsafe_allow_html=True)
+        if st.button("☰", key="toggle_sb_chat", help="Toggle sidebar"):
+            st.session_state.sidebar_open = not st.session_state.sidebar_open
+            st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
 
     # ── Repo connect ──────────────────────────────────────────────────────────
     with st.expander("🔗 Connect GitHub Repository" + (" ✓" if repo_connected else ""), expanded=False):
