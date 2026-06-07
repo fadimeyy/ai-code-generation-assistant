@@ -122,7 +122,6 @@ def render():
                 paper_bgcolor="#f7f7f5", plot_bgcolor="#f7f7f5",
                 font=dict(family="DM Mono, monospace", size=12, color="#1a1a1a"),
                 margin=dict(l=20, r=20, t=40, b=20),
-                showlegend=True,
             )
 
             chart_col1, chart_col2 = st.columns(2)
@@ -144,7 +143,7 @@ def render():
                     text=[bandit_a, bandit_b], textposition="outside",
                 ))
                 fig_ab.update_layout(
-                    **_ab_layout, barmode="group",
+                    **_ab_layout, barmode="group", showlegend=True,
                     title="Static Findings Visible to Each Mode",
                     xaxis=dict(showgrid=False),
                     yaxis=dict(showgrid=True, gridcolor="#e8e8e4", title="Issues"),
