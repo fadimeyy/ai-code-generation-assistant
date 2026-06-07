@@ -9,7 +9,9 @@ def render():
     st.markdown('<div class="section-label">Metrics Dashboard</div>', unsafe_allow_html=True)
     st.markdown("<p style='color:#666;font-family:DM Mono,monospace;font-size:0.75rem;margin-bottom:1.2rem;'>Session tracking — review and generation statistics</p>", unsafe_allow_html=True)
 
-    metrics = st.session_state.metrics
+    from core.database import load_metrics_db
+    metrics = load_metrics_db()
+    st.session_state.metrics = metrics
 
     _PLOTLY_LAYOUT = dict(
         paper_bgcolor="#f7f7f5",

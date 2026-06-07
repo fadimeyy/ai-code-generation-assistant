@@ -39,6 +39,8 @@ st.markdown("""
     --greenbg:  #F0FDF4;
     --gold:     #92400E;
     --goldbg:   #FFFBEB;
+    --purple:   #7C3AED;
+    --purplebg: #F5F3FF;
     --s-text:   #F5F0EB;
     --s-text2:  #A09080;
     --s-text3:  #5A4840;
@@ -60,7 +62,6 @@ html, body, [class*="css"] {
 #MainMenu, footer, header { visibility: hidden; }
 .block-container { padding: 0 !important; max-width: 100% !important; }
 
-/* ── SIDEBAR ── */
 [data-testid="stSidebar"] {
     background: var(--sidebar) !important;
     border-right: 1px solid #2A1E2A !important;
@@ -75,153 +76,81 @@ html, body, [class*="css"] {
     height: 100vh;
     overflow-y: auto;
 }
-.cs-logo {
-    padding: 20px 18px 16px;
-    border-bottom: 1px solid #2A1E2A;
-}
+.cs-logo { padding: 20px 18px 16px; border-bottom: 1px solid #2A1E2A; }
 .cs-logo-mark {
-    font-family: var(--sans);
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: var(--s-text);
-    letter-spacing: 0.02em;
-    display: flex;
-    align-items: center;
-    gap: 8px;
+    font-family: var(--sans); font-size: 1.1rem; font-weight: 700;
+    color: var(--s-text); letter-spacing: 0.02em;
+    display: flex; align-items: center; gap: 8px;
 }
 .cs-diamond { color: var(--accent); font-size: 1rem; }
 .cs-logo-sub {
-    font-family: var(--mono);
-    font-size: 0.55rem;
-    color: var(--s-text3);
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    margin-top: 4px;
+    font-family: var(--mono); font-size: 0.55rem; color: var(--s-text3);
+    letter-spacing: 0.18em; text-transform: uppercase; margin-top: 4px;
 }
 .cs-nav-section {
-    font-family: var(--mono);
-    font-size: 0.52rem;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: var(--s-text3);
-    padding: 14px 18px 4px;
+    font-family: var(--mono); font-size: 0.52rem; letter-spacing: 0.2em;
+    text-transform: uppercase; color: var(--s-text3); padding: 14px 18px 4px;
 }
 [data-testid="stSidebar"] .stButton > button {
-    background: transparent !important;
-    color: #857870 !important;
-    border: none !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-    font-family: 'JetBrains Mono', monospace !important;
-    font-size: 0.76rem !important;
-    font-weight: 400 !important;
-    padding: 8px 18px !important;
-    width: 100% !important;
-    text-align: left !important;
-    transition: color 0.15s !important;
-    border-left: 3px solid transparent !important;
-    letter-spacing: 0.01em !important;
+    background: transparent !important; color: #857870 !important;
+    border: none !important; border-radius: 0 !important;
+    box-shadow: none !important; font-family: 'JetBrains Mono', monospace !important;
+    font-size: 0.76rem !important; font-weight: 400 !important;
+    padding: 8px 18px !important; width: 100% !important;
+    text-align: left !important; transition: color 0.15s !important;
+    border-left: 3px solid transparent !important; letter-spacing: 0.01em !important;
 }
 [data-testid="stSidebar"] .stButton > button:hover {
-    background: transparent !important;
-    color: #F0EAE4 !important;
-    border-left-color: #5A3030 !important;
-    transform: none !important;
+    background: transparent !important; color: #F0EAE4 !important;
+    border-left-color: #5A3030 !important; transform: none !important;
     box-shadow: none !important;
 }
-[data-testid="stSidebar"] .stButton > button:active {
-    transform: none !important;
-    box-shadow: none !important;
+[data-testid="stSidebar"] .stButton > button:active,
+[data-testid="stSidebar"] .stButton > button:focus {
+    transform: none !important; box-shadow: none !important; outline: none !important;
 }
 [data-testid="stSidebar"] .stButton { margin: 0 !important; }
-[data-testid="stSidebar"] .stButton > button:focus {
-    box-shadow: none !important;
-    outline: none !important;
-}
 .cs-nav-active {
-    display: block;
-    padding: 8px 18px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.76rem;
-    font-weight: 500;
-    color: #F0EAE4;
-    border-left: 3px solid #B42318;
-    background: transparent;
+    display: block; padding: 8px 18px;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.76rem; font-weight: 500;
+    color: #F0EAE4; border-left: 3px solid #B42318; background: transparent;
     letter-spacing: 0.01em;
 }
 .cs-recent-label {
-    font-family: var(--mono);
-    font-size: 0.52rem;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: var(--s-text3);
-    padding: 12px 18px 6px;
+    font-family: var(--mono); font-size: 0.52rem; letter-spacing: 0.2em;
+    text-transform: uppercase; color: var(--s-text3); padding: 12px 18px 6px;
 }
 .cs-sidebar-bottom {
-    margin-top: auto;
-    padding: 10px 14px 12px;
-    border-top: 1px solid #2A1E2A;
+    margin-top: auto; padding: 10px 14px 12px; border-top: 1px solid #2A1E2A;
 }
 .cs-powered { font-family: var(--mono); font-size: 0.57rem; color: var(--s-text3); letter-spacing: 0.08em; }
 .cs-powered span { color: #E87060; }
 
-/* ── MAIN ── */
 section[data-testid="stMain"] { background: var(--bg) !important; }
 section[data-testid="stMain"] > div { padding: 0 !important; }
 
 .cs-page-header {
-    padding: 16px 32px 12px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: var(--bg2);
-    position: sticky;
-    top: 0;
-    z-index: 10;
+    padding: 16px 32px 12px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--bg2); position: sticky; top: 0; z-index: 10;
     box-shadow: var(--shadow);
 }
-.cs-page-title {
-    font-family: var(--sans);
-    font-size: 1.15rem;
-    font-weight: 700;
-    color: var(--text);
-    letter-spacing: -0.01em;
-}
-.cs-page-sub {
-    font-family: var(--mono);
-    font-size: 0.58rem;
-    color: var(--text3);
-    letter-spacing: 0.1em;
-    margin-left: 12px;
-}
+.cs-page-title { font-family: var(--sans); font-size: 1.15rem; font-weight: 700; color: var(--text); letter-spacing: -0.01em; }
+.cs-page-sub { font-family: var(--mono); font-size: 0.58rem; color: var(--text3); letter-spacing: 0.1em; margin-left: 12px; }
 .cs-page-content { padding: 24px 32px; }
 
 .cs-repo-connected {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 5px 12px;
-    border-radius: 20px;
-    background: var(--greenbg);
-    color: var(--green);
-    border: 1px solid #BBF7D0;
-    font-family: var(--mono);
-    font-size: 0.65rem;
-    font-weight: 500;
+    display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px;
+    border-radius: 20px; background: var(--greenbg); color: var(--green);
+    border: 1px solid #BBF7D0; font-family: var(--mono); font-size: 0.65rem; font-weight: 500;
 }
 
-/* ── INPUTS ── */
 .stTextInput > div > div > input,
 .stTextArea > div > div > textarea {
-    background: var(--bg2) !important;
-    border: 1px solid var(--border) !important;
-    border-radius: var(--radius) !important;
-    color: var(--text) !important;
-    font-family: var(--mono) !important;
-    font-size: 0.82rem !important;
-    box-shadow: var(--shadow) !important;
-    transition: border-color 0.15s, box-shadow 0.15s !important;
+    background: var(--bg2) !important; border: 1px solid var(--border) !important;
+    border-radius: var(--radius) !important; color: var(--text) !important;
+    font-family: var(--mono) !important; font-size: 0.82rem !important;
+    box-shadow: var(--shadow) !important; transition: border-color 0.15s, box-shadow 0.15s !important;
 }
 .stTextInput > div > div > input:focus,
 .stTextArea > div > div > textarea:focus {
@@ -229,256 +158,85 @@ section[data-testid="stMain"] > div { padding: 0 !important; }
     box-shadow: 0 0 0 3px rgba(180,35,24,0.08) !important;
 }
 .stTextInput label, .stTextArea label, .stSelectbox label {
-    font-family: var(--mono) !important;
-    font-size: 0.6rem !important;
-    letter-spacing: 0.14em !important;
-    text-transform: uppercase !important;
-    color: var(--text3) !important;
+    font-family: var(--mono) !important; font-size: 0.6rem !important;
+    letter-spacing: 0.14em !important; text-transform: uppercase !important; color: var(--text3) !important;
 }
 
-/* ── MAIN BUTTONS ── */
 section[data-testid="stMain"] .stButton > button {
-    background: var(--accent) !important;
-    color: #fff !important;
-    border: none !important;
-    border-radius: var(--radius) !important;
-    font-family: var(--mono) !important;
-    font-size: 0.76rem !important;
-    font-weight: 500 !important;
-    padding: 9px 20px !important;
-    letter-spacing: 0.04em !important;
-    transition: background 0.15s, transform 0.1s !important;
+    background: var(--accent) !important; color: #fff !important;
+    border: none !important; border-radius: var(--radius) !important;
+    font-family: var(--mono) !important; font-size: 0.76rem !important;
+    font-weight: 500 !important; padding: 9px 20px !important;
+    letter-spacing: 0.04em !important; transition: background 0.15s, transform 0.1s !important;
     box-shadow: 0 1px 2px rgba(180,35,24,0.2) !important;
 }
-section[data-testid="stMain"] .stButton > button:hover {
-    background: var(--accent2) !important;
-    transform: translateY(-1px) !important;
-}
-section[data-testid="stMain"] .stButton > button:active {
-    transform: translateY(0) !important;
-}
+section[data-testid="stMain"] .stButton > button:hover { background: var(--accent2) !important; transform: translateY(-1px) !important; }
+section[data-testid="stMain"] .stButton > button:active { transform: translateY(0) !important; }
 
-/* ── SELECTBOX ── */
 .stSelectbox > div > div {
-    background: var(--bg2) !important;
-    border: 1px solid var(--border) !important;
-    border-radius: var(--radius) !important;
-    color: var(--text) !important;
-    font-family: var(--mono) !important;
-    font-size: 0.8rem !important;
+    background: var(--bg2) !important; border: 1px solid var(--border) !important;
+    border-radius: var(--radius) !important; color: var(--text) !important;
+    font-family: var(--mono) !important; font-size: 0.8rem !important;
     box-shadow: var(--shadow) !important;
 }
 
-/* ── METRICS ── */
 [data-testid="stMetric"] {
-    background: var(--bg2) !important;
-    border: 1px solid var(--border) !important;
-    border-radius: var(--radius) !important;
-    padding: 16px 18px !important;
-    box-shadow: var(--shadow) !important;
+    background: var(--bg2) !important; border: 1px solid var(--border) !important;
+    border-radius: var(--radius) !important; padding: 16px 18px !important; box-shadow: var(--shadow) !important;
 }
-[data-testid="stMetricValue"] {
-    font-family: var(--sans) !important;
-    color: var(--accent) !important;
-    font-size: 1.8rem !important;
-    font-weight: 700 !important;
-}
-[data-testid="stMetricLabel"] {
-    font-family: var(--mono) !important;
-    font-size: 0.58rem !important;
-    letter-spacing: 0.14em !important;
-    text-transform: uppercase !important;
-    color: var(--text3) !important;
-}
+[data-testid="stMetricValue"] { font-family: var(--sans) !important; color: var(--accent) !important; font-size: 1.8rem !important; font-weight: 700 !important; }
+[data-testid="stMetricLabel"] { font-family: var(--mono) !important; font-size: 0.58rem !important; letter-spacing: 0.14em !important; text-transform: uppercase !important; color: var(--text3) !important; }
 
-/* ── TABS ── */
-.stTabs [data-baseweb="tab-list"] {
-    background: transparent !important;
-    border-bottom: 1px solid var(--border) !important;
-    gap: 0 !important;
-}
-.stTabs [data-baseweb="tab"] {
-    background: transparent !important;
-    color: var(--text3) !important;
-    border-bottom: 2px solid transparent !important;
-    font-family: var(--mono) !important;
-    font-size: 0.75rem !important;
-    padding: 9px 16px !important;
-}
-.stTabs [aria-selected="true"] {
-    color: var(--accent) !important;
-    border-bottom-color: var(--accent) !important;
-    font-weight: 500 !important;
-}
+.stTabs [data-baseweb="tab-list"] { background: transparent !important; border-bottom: 1px solid var(--border) !important; gap: 0 !important; }
+.stTabs [data-baseweb="tab"] { background: transparent !important; color: var(--text3) !important; border-bottom: 2px solid transparent !important; font-family: var(--mono) !important; font-size: 0.75rem !important; padding: 9px 16px !important; }
+.stTabs [aria-selected="true"] { color: var(--accent) !important; border-bottom-color: var(--accent) !important; font-weight: 500 !important; }
 
-/* ── ALERTS ── */
-.stAlert {
-    border-radius: var(--radius) !important;
-    border-left-width: 3px !important;
-    font-family: var(--mono) !important;
-    font-size: 0.76rem !important;
-}
+.stAlert { border-radius: var(--radius) !important; border-left-width: 3px !important; font-family: var(--mono) !important; font-size: 0.76rem !important; }
 
-/* ── CODE ── */
-.stCode, pre, code {
-    background: #F8F6F2 !important;
-    border: 1px solid var(--border) !important;
-    border-radius: var(--radius) !important;
-    font-family: var(--mono) !important;
-    font-size: 0.79rem !important;
-    color: var(--text) !important;
-}
+.stCode, pre, code { background: #F8F6F2 !important; border: 1px solid var(--border) !important; border-radius: var(--radius) !important; font-family: var(--mono) !important; font-size: 0.79rem !important; color: var(--text) !important; }
 
-/* ── PROGRESS ── */
 .stProgress > div > div > div { background: var(--accent) !important; }
 .stProgress > div > div { background: var(--bg3) !important; border-radius: 2px !important; }
 
-/* ── DOWNLOAD ── */
-.stDownloadButton > button {
-    background: transparent !important;
-    color: var(--accent) !important;
-    border: 1px solid var(--accentbd) !important;
-    border-radius: var(--radius) !important;
-    font-family: var(--mono) !important;
-    font-size: 0.74rem !important;
-    transition: all 0.15s !important;
-}
-.stDownloadButton > button:hover {
-    background: var(--accent) !important;
-    color: #fff !important;
-}
+.stDownloadButton > button { background: transparent !important; color: var(--accent) !important; border: 1px solid var(--accentbd) !important; border-radius: var(--radius) !important; font-family: var(--mono) !important; font-size: 0.74rem !important; transition: all 0.15s !important; }
+.stDownloadButton > button:hover { background: var(--accent) !important; color: #fff !important; }
 
-/* ── CHAT BUBBLES ── */
 .chat-user {
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-left: 3px solid var(--accent);
-    padding: 12px 16px;
-    margin: 8px 0;
+    background: var(--bg2); border: 1px solid var(--border);
+    border-left: 3px solid var(--accent); padding: 12px 16px; margin: 8px 0;
     border-radius: 0 var(--radius) var(--radius) 0;
-    font-family: var(--mono);
-    font-size: 0.82rem;
-    color: var(--text);
-    box-shadow: var(--shadow);
+    font-family: var(--mono); font-size: 0.82rem; color: var(--text); box-shadow: var(--shadow);
 }
 .chat-assistant {
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-left: 3px solid var(--border2);
-    padding: 14px 18px;
-    margin: 8px 0;
+    background: var(--bg2); border: 1px solid var(--border);
+    border-left: 3px solid var(--border2); padding: 14px 18px; margin: 8px 0;
     border-radius: 0 var(--radius) var(--radius) 0;
-    font-family: var(--mono);
-    font-size: 0.81rem;
-    color: var(--text2);
-    line-height: 1.65;
-    box-shadow: var(--shadow);
+    font-family: var(--mono); font-size: 0.81rem; color: var(--text2);
+    line-height: 1.65; box-shadow: var(--shadow);
 }
 
-/* ── EXPANDER ── */
-.stExpander {
-    border: 1px solid var(--border) !important;
-    border-radius: var(--radius) !important;
-    background: var(--bg2) !important;
-    box-shadow: var(--shadow) !important;
-}
+.stExpander { border: 1px solid var(--border) !important; border-radius: var(--radius) !important; background: var(--bg2) !important; box-shadow: var(--shadow) !important; }
+.stCheckbox label { color: var(--text2) !important; font-family: var(--mono) !important; font-size: 0.78rem !important; }
 
-/* ── CHECKBOX ── */
-.stCheckbox label {
-    color: var(--text2) !important;
-    font-family: var(--mono) !important;
-    font-size: 0.78rem !important;
-}
+.section-label { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--text3); border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 14px; }
 
-/* ── SECTION LABELS ── */
-.section-label {
-    font-family: var(--mono);
-    font-size: 0.58rem;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: var(--text3);
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 6px;
-    margin-bottom: 14px;
-}
-
-/* ── INTENT BADGES ── */
-.intent-badge {
-    display: inline-block;
-    padding: 2px 10px;
-    border-radius: 20px;
-    font-family: var(--mono);
-    font-size: 0.62rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    margin-bottom: 6px;
-    font-weight: 500;
-}
+.intent-badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px; font-weight: 500; }
 .intent-review   { background: var(--accentbg); color: var(--accent); border: 1px solid var(--accentbd); }
 .intent-generate { background: var(--bluebg);   color: var(--blue);   border: 1px solid #BFDBFE; }
 .intent-repo     { background: var(--greenbg);  color: var(--green);  border: 1px solid #BBF7D0; }
 .intent-chat     { background: var(--bg3);      color: var(--text3);  border: 1px solid var(--border); }
 .intent-bench    { background: var(--goldbg);   color: var(--gold);   border: 1px solid #FDE68A; }
 
-/* ── PROMPT CARDS ── */
-.prompt-card {
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 10px 16px;
-    font-family: var(--mono);
-    font-size: 0.7rem;
-    cursor: pointer;
-    transition: all 0.15s;
-    box-shadow: var(--shadow);
-}
+.prompt-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 16px; font-family: var(--mono); font-size: 0.7rem; cursor: pointer; transition: all 0.15s; box-shadow: var(--shadow); }
 .prompt-card:hover { border-color: var(--border2); box-shadow: var(--shadow2); }
 .prompt-review   { border-left: 3px solid var(--accent); color: var(--accent); }
 .prompt-generate { border-left: 3px solid var(--blue);   color: var(--blue);   }
 .prompt-repo     { border-left: 3px solid var(--green);  color: var(--green);  }
 
-/* ── DATAFRAME ── */
-[data-testid="stDataFrame"] {
-    border: 1px solid var(--border) !important;
-    border-radius: var(--radius) !important;
-    overflow: hidden !important;
-    box-shadow: var(--shadow) !important;
-}
+[data-testid="stDataFrame"] { border: 1px solid var(--border) !important; border-radius: var(--radius) !important; overflow: hidden !important; box-shadow: var(--shadow) !important; }
 
-/* ── MULTISELECT ── */
-.stMultiSelect > div > div {
-    background: var(--bg2) !important;
-    border: 1px solid var(--border) !important;
-    border-radius: var(--radius) !important;
-}
-[data-baseweb="tag"] {
-    background: var(--accent) !important;
-    border-radius: 4px !important;
-    font-family: var(--mono) !important;
-    font-size: 0.68rem !important;
-}
-
-/* ── SESSION HISTORY ITEMS ── */
-.session-item {
-    display: block;
-    padding: 6px 14px;
-    margin: 1px 8px;
-    border-radius: 5px;
-    font-family: var(--mono);
-    font-size: 0.65rem;
-    color: var(--s-text3);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    transition: all 0.12s;
-    cursor: pointer;
-}
-.session-item:hover { background: #261820; color: var(--s-text2); }
-.session-item-active {
-    background: #2A1820 !important;
-    color: #E0A090 !important;
-    border-left: 2px solid #B42318;
-}
+.stMultiSelect > div > div { background: var(--bg2) !important; border: 1px solid var(--border) !important; border-radius: var(--radius) !important; }
+[data-baseweb="tag"] { background: var(--accent) !important; border-radius: 4px !important; font-family: var(--mono) !important; font-size: 0.68rem !important; }
 
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: var(--bg3); }
@@ -488,12 +246,12 @@ hr { border-color: var(--border) !important; }
 """, unsafe_allow_html=True)
 
 # ── Session state ─────────────────────────────────────────────────────────────
-if "history"           not in st.session_state: st.session_state.history           = []
-if "metrics"           not in st.session_state: st.session_state.metrics           = load_metrics_db()
-if "page"              not in st.session_state: st.session_state.page              = "chat"
-if "repo_context"      not in st.session_state: st.session_state.repo_context      = ""
+if "history"            not in st.session_state: st.session_state.history            = []
+if "metrics"            not in st.session_state: st.session_state.metrics            = load_metrics_db()
+if "page"               not in st.session_state: st.session_state.page               = "chat"
+if "repo_context"       not in st.session_state: st.session_state.repo_context       = ""
 if "repo_url_connected" not in st.session_state: st.session_state.repo_url_connected = ""
-if "session_id"        not in st.session_state: st.session_state.session_id        = str(uuid.uuid4())[:8]
+if "session_id"         not in st.session_state: st.session_state.session_id         = str(uuid.uuid4())[:8]
 
 # ── Intent detection ──────────────────────────────────────────────────────────
 def detect_intent(msg: str) -> str:
@@ -542,11 +300,11 @@ with st.sidebar:
     pages = {
         "chat":      "💬  Chat",
         "benchmark": "🎯  Benchmark",
+        "ab":        "⚡  A/B Compare",
         "metrics":   "📊  Metrics",
     }
     for key, label in pages.items():
-        active = st.session_state.page == key
-        if active:
+        if st.session_state.page == key:
             st.markdown(f"<div class='cs-nav-active'>{label}</div>", unsafe_allow_html=True)
         else:
             if st.button(label, key=f"nav_{key}"):
@@ -561,23 +319,18 @@ with st.sidebar:
             st.session_state.page = "docs"
             st.rerun()
 
-    # ── Recent Sessions (tıklanabilir) ────────────────────────────────────────
+    # ── Recent Sessions ───────────────────────────────────────────────────────
     st.markdown("<div class='cs-recent-label'>Recent Sessions</div>", unsafe_allow_html=True)
     sessions = load_chat_sessions_db()
     if sessions:
         for s in sessions:
-            ts       = s["started"][:16] if s["started"] else ""
-            n        = s["msg_count"]
-            sid      = s["session_id"]
-            is_active = sid == st.session_state.session_id
-            extra_cls = "session-item-active" if is_active else ""
-            # Buton olarak göster — tıklanınca o session yüklenir
-            btn_label = f"{ts} · {n}msg"
-            if st.button(btn_label, key=f"sess_{sid}"):
-                loaded = load_chat_history_db(sid)
-                st.session_state.history   = loaded
+            ts  = s["started"][:16] if s["started"] else ""
+            n   = s["msg_count"]
+            sid = s["session_id"]
+            if st.button(f"{ts} · {n}msg", key=f"sess_{sid}"):
+                st.session_state.history    = load_chat_history_db(sid)
                 st.session_state.session_id = sid
-                st.session_state.page      = "chat"
+                st.session_state.page       = "chat"
                 st.rerun()
     else:
         st.markdown(
@@ -598,9 +351,10 @@ pg = st.session_state.page
 # ── NON-CHAT PAGES ────────────────────────────────────────────────────────────
 if pg != "chat":
     _TITLES = {
-        "benchmark": ("Benchmark",  "50 test cases · precision / recall / F1"),
-        "metrics":   ("Metrics",    "session statistics · usage tracking"),
-        "docs":      ("Docs",       "architecture · how it works"),
+        "benchmark": ("Benchmark",   "50 test cases · precision / recall / F1"),
+        "ab":        ("A/B Compare", "side-by-side mode comparison"),
+        "metrics":   ("Metrics",     "session statistics · usage tracking"),
+        "docs":      ("Docs",        "architecture · how it works"),
     }
     t, s = _TITLES.get(pg, (pg, ""))
     st.markdown(f"""
@@ -614,6 +368,9 @@ if pg != "chat":
     if pg == "benchmark":
         from tabs import benchmark_tab
         benchmark_tab.render()
+    elif pg == "ab":
+        from tabs import ab_compare
+        ab_compare.render()
     elif pg == "metrics":
         from tabs import metrics as metrics_tab
         metrics_tab.render()
@@ -623,7 +380,7 @@ if pg != "chat":
 
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ── UNIFIED CHAT PAGE ─────────────────────────────────────────────────────────
+# ── CHAT PAGE ─────────────────────────────────────────────────────────────────
 else:
     repo_connected = st.session_state.repo_url_connected
     repo_badge = ""
@@ -637,9 +394,7 @@ else:
         <span class="cs-page-title">CodeSense</span>
         <span class="cs-page-sub">chat · review · generate · repo analysis</span>
       </div>
-      <div style="display:flex;gap:8px;align-items:center;">
-        {repo_badge}
-      </div>
+      <div style="display:flex;gap:8px;align-items:center;">{repo_badge}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -649,8 +404,7 @@ else:
         with col_r1:
             repo_url = st.text_input("Repository URL",
                 placeholder="https://github.com/username/repo",
-                value=repo_connected,
-                key="repo_url_input")
+                value=repo_connected, key="repo_url_input")
         with col_r2:
             repo_file = st.text_input("File path (optional)",
                 placeholder="src/main.py", key="repo_file_input")
@@ -672,9 +426,7 @@ else:
                             )
                         msg_content = f"✓ Repository connected: `{repo_url}`\n\n{summary}"
                         st.session_state.history.append({
-                            "role": "assistant",
-                            "content": msg_content,
-                            "intent": "repo"
+                            "role": "assistant", "content": msg_content, "intent": "repo"
                         })
                         save_chat_db(st.session_state.session_id, "assistant", msg_content, "repo")
                         st.rerun()
@@ -690,7 +442,7 @@ else:
 
     st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
 
-    # ── Chat history display ───────────────────────────────────────────────────
+    # ── Chat history ──────────────────────────────────────────────────────────
     if not st.session_state.history:
         st.markdown("""
         <div style="padding:48px 0 28px;text-align:center;">
@@ -711,8 +463,7 @@ else:
         for msg in st.session_state.history:
             if msg["role"] == "user":
                 content = msg["content"].replace("<", "&lt;").replace(">", "&gt;")
-                st.markdown(f"<div class='chat-user'>👤 {content}</div>",
-                            unsafe_allow_html=True)
+                st.markdown(f"<div class='chat-user'>👤 {content}</div>", unsafe_allow_html=True)
             else:
                 intent_class = msg.get("intent", "chat")
                 badge_map = {
@@ -723,11 +474,10 @@ else:
                     "benchmark": ("intent-bench",    "Benchmark"),
                 }
                 bc, bl = badge_map.get(intent_class, ("intent-chat", "Assistant"))
-                st.markdown(f"<span class='intent-badge {bc}'>{bl}</span>",
-                            unsafe_allow_html=True)
+                st.markdown(f"<span class='intent-badge {bc}'>{bl}</span>", unsafe_allow_html=True)
                 st.markdown(msg["content"])
 
-    # ── Input area ────────────────────────────────────────────────────────────
+    # ── Input ─────────────────────────────────────────────────────────────────
     st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
 
     col_in, col_mode = st.columns([4, 1])
@@ -735,9 +485,7 @@ else:
         user_input = st.text_area(
             "Message",
             placeholder="Review code, write a function, explain an error... (Shift+Enter = new line)",
-            height=120,
-            label_visibility="collapsed",
-            key="user_msg"
+            height=120, label_visibility="collapsed", key="user_msg"
         )
     with col_mode:
         st.markdown("""
@@ -746,22 +494,17 @@ else:
                     margin-bottom:4px;'>Review Mode</div>
         """, unsafe_allow_html=True)
         review_mode = st.selectbox(
-            "Review Mode",
-            ["llm_only", "static_llm"],
+            "Review Mode", ["llm_only", "static_llm"],
             format_func=lambda x: "LLM Only" if x == "llm_only" else "Static + LLM",
-            key="rev_mode",
-            label_visibility="collapsed"
+            key="rev_mode", label_visibility="collapsed"
         )
-        mode_desc = {
-            "llm_only":   "Fast — code only",
-            "static_llm": "Ruff + Bandit + LLM",
-        }
+        mode_desc = {"llm_only": "Fast — code only", "static_llm": "Ruff + Bandit + LLM"}
         st.markdown(f"""
         <div style='font-family:JetBrains Mono,monospace;font-size:0.62rem;
                     color:#A09890;margin-top:4px;'>{mode_desc[review_mode]}</div>
         """, unsafe_allow_html=True)
 
-    col_send, col_clear, col_spacer = st.columns([1, 1, 6])
+    col_send, col_clear, _ = st.columns([1, 1, 6])
     with col_send:
         send = st.button("▶ Send", key="send_btn")
     with col_clear:
@@ -770,7 +513,7 @@ else:
             st.session_state.session_id = str(uuid.uuid4())[:8]
             st.rerun()
 
-    # ── Process message ───────────────────────────────────────────────────────
+    # ── Process ───────────────────────────────────────────────────────────────
     if send and user_input.strip():
         msg = user_input.strip()
         st.session_state.history.append({"role": "user", "content": msg})
@@ -783,7 +526,6 @@ else:
         with st.spinner("Processing..."):
             response = ""
 
-            # ── REVIEW ───────────────────────────────────────────────────────
             if intent == "review" and code:
                 ruff   = run_ruff(code)
                 bandit = run_bandit(code)
@@ -796,17 +538,14 @@ else:
                     st.session_state.metrics = load_metrics_db()
 
             elif intent == "review" and not code:
-                ruff   = []
-                bandit = []
-                mode   = "repo_llm" if repo_ctx else review_mode
-                response = ask_llm(msg, ruff, bandit, mode, repo_ctx)
+                mode = "repo_llm" if repo_ctx else review_mode
+                response = ask_llm(msg, [], [], mode, repo_ctx)
                 if not response:
                     response = "⚠️ No response from API. Please try again."
                 else:
                     record_metric(mode, 0, 0, False)
                     st.session_state.metrics = load_metrics_db()
 
-            # ── GENERATE ─────────────────────────────────────────────────────
             elif intent == "generate":
                 if re.search(r"tamamla|complete|devam et|finish", msg.lower()) and code:
                     response = complete_code(code)
@@ -821,7 +560,6 @@ else:
                     record_metric("llm_only", 0, 0, False)
                     st.session_state.metrics = load_metrics_db()
 
-            # ── REPO ─────────────────────────────────────────────────────────
             elif intent == "repo":
                 urls = re.findall(r"https://github\.com/\S+", msg)
                 if urls:
@@ -844,11 +582,9 @@ else:
                     response = ("No repository connected. Include a GitHub URL in your message.\n\n"
                                 "Example: `https://github.com/username/repo`")
 
-            # ── BENCHMARK redirect ────────────────────────────────────────────
             elif intent == "benchmark":
                 response = "Use the 🎯 Benchmark tab in the left menu to run the 50-case evaluation."
 
-            # ── CHAT (default) ───────────────────────────────────────────────
             else:
                 history_for_llm = [
                     {"role": m["role"], "content": m["content"]}
@@ -859,9 +595,7 @@ else:
                     response = "⚠️ No response from API. Please try again."
 
         st.session_state.history.append({
-            "role": "assistant",
-            "content": response,
-            "intent": intent
+            "role": "assistant", "content": response, "intent": intent
         })
         save_chat_db(st.session_state.session_id, "assistant", response, intent)
         st.rerun()
