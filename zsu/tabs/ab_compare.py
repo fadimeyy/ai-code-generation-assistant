@@ -108,11 +108,9 @@ def render():
             )
 
             def count_lines_mentioned(text: str) -> int:
-                # "Line 6", "Line number: 6", "line number: 6" gibi formatları say
-                line_refs = re.findall(r'[Ll]ine(?:\s+number)?:?\s*\d+', text)
-                # Ayrıca "Issue:" veya madde başı sayıları da say (Mode B formatı)
-                issue_refs = re.findall(r'(?:Issue:|^\d+\.|Severity:)', text, re.MULTILINE)
-                return max(len(line_refs), len(issue_refs) // 2)
+                line_refs = re.findall(r'[Ll]ine(?:\s+[Nn]umber)?:?\s*\d+', text)
+                issue_refs = re.findall(r'Severity:', text)
+                return max(len(line_refs), len(issue_refs))
 
             lines_a = count_lines_mentioned(result_a)
             lines_b = count_lines_mentioned(result_b)
