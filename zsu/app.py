@@ -99,54 +99,52 @@ html, body, [class*="css"] {
     letter-spacing: 0.2em;
     text-transform: uppercase;
     color: var(--s-text3);
-    padding: 14px 18px 6px;
+    padding: 14px 18px 4px;
 }
-[data-testid="stSidebar"] .stRadio > div { gap: 1px !important; }
-[data-testid="stSidebar"] .stRadio label {
-    display: flex !important;
-    align-items: center !important;
-    padding: 9px 14px !important;
-    border-radius: 5px !important;
-    cursor: pointer !important;
-    font-family: var(--mono) !important;
-    font-size: 0.76rem !important;
-    font-weight: 400 !important;
-    color: var(--s-text2) !important;
-    transition: all 0.12s !important;
-    margin: 1px 8px !important;
-    width: calc(100% - 16px) !important;
-    border-left: 3px solid transparent !important;
-}
-[data-testid="stSidebar"] .stRadio label:hover {
-    background: #261820 !important;
-    color: var(--s-text) !important;
-}
-[data-testid="stSidebar"] .stRadio [aria-checked="true"] + label,
-[data-testid="stSidebar"] .stRadio label[data-checked="true"] {
-    background: #261820 !important;
-    color: var(--s-text) !important;
-    border-left-color: var(--accent) !important;
-    font-weight: 500 !important;
-}
-[data-testid="stSidebar"] .stRadio input[type="radio"] { display: none !important; }
-[data-testid="stSidebar"] .stRadio [data-baseweb="radio"] > div:first-child { display: none !important; }
-[data-testid="stSidebar"] .stRadio > label { display: none !important; }
+/* Remove ALL Streamlit button styling in sidebar */
 [data-testid="stSidebar"] .stButton > button {
     background: transparent !important;
-    color: var(--s-text2) !important;
-    border: 1px solid #3A2830 !important;
-    border-radius: 5px !important;
-    font-family: var(--mono) !important;
-    font-size: 0.74rem !important;
-    padding: 7px 14px !important;
+    color: #857870 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 0.76rem !important;
+    font-weight: 400 !important;
+    padding: 8px 18px !important;
     width: 100% !important;
     text-align: left !important;
-    transition: all 0.12s !important;
+    transition: color 0.15s !important;
+    border-left: 3px solid transparent !important;
+    letter-spacing: 0.01em !important;
 }
 [data-testid="stSidebar"] .stButton > button:hover {
-    background: #261820 !important;
-    color: var(--s-text) !important;
-    border-color: #5A3040 !important;
+    background: transparent !important;
+    color: #F0EAE4 !important;
+    border-left-color: #5A3030 !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+[data-testid="stSidebar"] .stButton > button:active {
+    transform: none !important;
+    box-shadow: none !important;
+}
+[data-testid="stSidebar"] .stButton { margin: 0 !important; }
+[data-testid="stSidebar"] .stButton > button:focus {
+    box-shadow: none !important;
+    outline: none !important;
+}
+/* Active nav item */
+.cs-nav-active {
+    display: block;
+    padding: 8px 18px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.76rem;
+    font-weight: 500;
+    color: #F0EAE4;
+    border-left: 3px solid #B42318;
+    background: transparent;
+    letter-spacing: 0.01em;
 }
 .cs-recent-label {
     font-family: var(--mono);
@@ -542,7 +540,7 @@ with st.sidebar:
 
     st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
 
-    if st.button("＋  New Session", key="new_session"):
+    if st.button("＋  New Session", key="new_session"):  # styled via sidebar CSS
         st.session_state.history = []
         st.session_state.repo_context = ""
         st.session_state.repo_url_connected = ""
@@ -559,12 +557,7 @@ with st.sidebar:
     for key, label in pages.items():
         active = st.session_state.page == key
         if active:
-            st.markdown(
-                f"<div style='padding:9px 14px;margin:1px 8px;border-radius:5px;"
-                f"background:#261820;color:#F5F0EB;font-family:JetBrains Mono,monospace;"
-                f"font-size:0.76rem;font-weight:500;border-left:3px solid #B42318;'>{label}</div>",
-                unsafe_allow_html=True
-            )
+            st.markdown(f"<div class='cs-nav-active'>{label}</div>", unsafe_allow_html=True)
         else:
             if st.button(label, key=f"nav_{key}"):
                 st.session_state.page = key
@@ -572,12 +565,7 @@ with st.sidebar:
 
     st.markdown("<div class='cs-nav-section'>Learn</div>", unsafe_allow_html=True)
     if st.session_state.page == "docs":
-        st.markdown(
-            "<div style='padding:9px 14px;margin:1px 8px;border-radius:5px;"
-            "background:#261820;color:#F5F0EB;font-family:JetBrains Mono,monospace;"
-            "font-size:0.76rem;font-weight:500;border-left:3px solid #B42318;'>📖  Docs</div>",
-            unsafe_allow_html=True
-        )
+        st.markdown("<div class='cs-nav-active'>📖  Docs</div>", unsafe_allow_html=True)
     else:
         if st.button("📖  Docs", key="nav_docs"):
             st.session_state.page = "docs"
