@@ -112,7 +112,12 @@ def render():
         sampled      = _rnd.sample(normal_cases, min(sample_count, len(normal_cases)))
         filtered_cases = sampled + repo_cases
 
-    total_calls = len(filtered_cases) * len(selected_modes)
+    # Gerçek call sayısını hesapla (repo_only vakalar sadece repo_llm ile çalışır)
+    _normal_modes = [m for m in selected_modes if m != "repo_llm"]
+    _repo_modes   = [m for m in selected_modes if m == "repo_llm"]
+    _normal_count = sum(1 for c in filtered_cases if not c.get("repo_only"))
+    _repo_count   = sum(1 for c in filtered_cases if c.get("repo_only"))
+    total_calls = _normal_count * len(_normal_modes) + _repo_count * len(_repo_modes)
     est_min = round(total_calls * 6 / 60, 1)
     st.markdown(
         f"<p style='font-family:DM Mono,monospace;font-size:0.75rem;color:#999;'>"
@@ -149,7 +154,12 @@ def render():
 
         results = []
         skipped = []
-        total_cases = len(filtered_cases) * len(selected_modes)
+        # Toplam call sayısını akıllıca hesapla
+        normal_modes = [m for m in selected_modes if m != "repo_llm"]
+        repo_modes   = [m for m in selected_modes if m == "repo_llm"]
+        normal_cases_count = sum(1 for c in filtered_cases if not c.get("repo_only"))
+        repo_cases_count   = sum(1 for c in filtered_cases if c.get("repo_only"))
+        total_cases = normal_cases_count * len(normal_modes) + repo_cases_count * len(repo_modes)
         progress  = st.progress(0)
         status_txt = st.empty()
         eta_txt    = st.empty()
@@ -161,7 +171,13 @@ def render():
             ruff_issues   = run_ruff(tc["code"])
             bandit_issues = run_bandit(tc["code"])
 
-            for mode in selected_modes:
+            # repo_only vakalar sadece repo_llm ile, normal vakalar sadece diğer modlarla
+            if tc.get("repo_only"):
+                modes_for_tc = [m for m in selected_modes if m == "repo_llm"]
+            else:
+                modes_for_tc = [m for m in selected_modes if m != "repo_llm"]
+
+            for mode in modes_for_tc:
                 status_txt.markdown(
                     f"<span style='font-family:DM Mono,monospace;font-size:0.75rem;color:#999;'>"
                     f"Running {_MODE_LABEL[mode]} on {tc['id']} — {tc['name']}…</span>",
